@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  # 메인 데이터베이스 (PostgreSQL)
+  postgres:
+    image: postgres:15-alpine
+    container_name: skinner-db
+    environment:
+      POSTGRES_DB: skinner_postgres_db
+      POSTGRES_USER: skinner
+      POSTGRES_PASSWORD: psikskinner
+    ports:
+      - "5432:5432"
+    volumes:
+      # 로컬의 ./db/data 폴더에 DB 데이터를 저장 (컨테이너 내려도 데이터 유지)
+      - ./db/data:/var/lib/postgresql/data
+    restart: always

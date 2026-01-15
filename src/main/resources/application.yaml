@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: skinner
+
+  #데이터베이스 연결 설정
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  #JPA & Hibernate 설정
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+#jwt 설정
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS}
+  refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS}
+
+
+#서버 포트 설정
+server:
+  port: ${SERVER_PORT}
+
+#로그 레벨 설정
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: DEBUG # 쿼리 로그 보기
