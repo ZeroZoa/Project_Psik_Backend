@@ -32,7 +32,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         //AuthService를 통해 Access/Refresh Token 생성 및 저장
         var tokenResponse = authService.createToken(
-                member.getUuid().toString(),
+                member.getUuid(),
                 member.getRole().getKey(),
                 ip,
                 userAgent
