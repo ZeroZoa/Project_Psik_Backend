@@ -6,12 +6,17 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.UUID;
 
 @Getter
-public class CustomOAuth2User implements OAuth2User {
+public class CustomOAuth2User implements OAuth2User, Serializable {
+    //직렬화 ID
+    private static final long serialVersionUID = 1L;
+
     private final Member member; // DB에서 조회한 우리 서비스의 회원 정보
     private final Map<String, Object> attributes; // 소셜 서비스(카카오)에서 받은 원본 데이터
 
@@ -39,7 +44,7 @@ public class CustomOAuth2User implements OAuth2User {
     }
 
     // 편의 메소드: UUID가 필요할 때 명시적으로 호출
-    public String getMemberUuid() {
-        return member.getUuid().toString();
+    public UUID getMemberUuid() {
+        return member.getUuid();
     }
 }

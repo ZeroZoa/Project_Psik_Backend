@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -20,41 +21,36 @@ public class JwtTokenProvider {
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
-            // 변경된 application.yaml 키 반영
             @Value("${jwt.access-token-expiration-ms}") long accessTokenExpirationMs,
             @Value("${jwt.refresh-token-expiration-ms}") long refreshTokenExpirationMs) {
 
-        // Base64로 인코딩된 키를 디코딩하여 사용 (보안 표준)
         byte[] keyBytes = Decoders.BASE64.decode(secret);
         this.key = Keys.hmacShaKeyFor(keyBytes);
-
-        // 이미 ms 단위이므로 그대로 할당
         this.accessTokenExpirationMs = accessTokenExpirationMs;
         this.refreshTokenExpirationMs = refreshTokenExpirationMs;
     }
 
-    // 1. Access Token 생성
-    public String createAccessToken(String memberUuid, String role) {
-        return createToken(memberUuid, role, accessTokenExpirationMs);
+    //Access Token 생성 (UUID 입력)
+    public String createAccessToken(UUID memberUuid, String role) {
+        return createToken(memberUuid.toString(), role, accessTokenExpirationMs);
     }
 
-    // 2. Refresh Token 생성
-    public String createRefreshToken(String memberUuid) {
-        return createToken(memberUuid, null, refreshTokenExpirationMs);
+    //Refresh Token 생성 (UUID 입력)
+    public String createRefreshToken(UUID memberUuid) {
+        return createToken(memberUuid.toString(), null, refreshTokenExpirationMs);
     }
 
-    // 내부 토큰 생성 로직 (공통)
+    //내부 토큰 생성 로직
     private String createToken(String subject, String role, long expirationMs) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + expirationMs);
 
         var builder = Jwts.builder()
-                .subject(subject) // 사용자 식별자 (UUID)
+                .subject(subject) // UUID String이 들어감
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(key);
 
-        // Role이 있는 경우에만 Claim에 추가 (Refresh Token은 Role 불필요)
         if (role != null) {
             builder.claim("role", role);
         }
@@ -62,7 +58,7 @@ public class JwtTokenProvider {
         return builder.compact();
     }
 
-    // 3. 토큰에서 Payload(Subject: UUID) 추출
+    //토큰에서 UUID 추출 (String으로 반환하되, 호출부에서 변환)
     public String getPayload(String token) {
         try {
             return Jwts.parser()
@@ -72,7 +68,8 @@ public class JwtTokenProvider {
                     .getPayload()
                     .getSubject();
         } catch (JwtException | IllegalArgumentException e) {
-            return null;
+            // validateToken을 먼저 호출하지 않고 파싱하려 할 때 발생
+            throw new IllegalArgumentException("유효하지 않은 토큰입니다.");
         }
     }
 
@@ -94,5 +91,18 @@ public class JwtTokenProvider {
             log.warn("JWT 토큰이 잘못되었습니다.");
         }
         return false;
+    }
+
+    public String getRole(String token) {
+        try {
+            return Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .get("role", String.class);
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
     }
 }
