@@ -30,17 +30,17 @@ public class JwtTokenProvider {
         this.refreshTokenExpirationMs = refreshTokenExpirationMs;
     }
 
-    // 1. Access Token 생성 (UUID 입력)
+    //Access Token 생성 (UUID 입력)
     public String createAccessToken(UUID memberUuid, String role) {
         return createToken(memberUuid.toString(), role, accessTokenExpirationMs);
     }
 
-    // 2. Refresh Token 생성 (UUID 입력)
+    //Refresh Token 생성 (UUID 입력)
     public String createRefreshToken(UUID memberUuid) {
         return createToken(memberUuid.toString(), null, refreshTokenExpirationMs);
     }
 
-    // 내부 토큰 생성 로직
+    //내부 토큰 생성 로직
     private String createToken(String subject, String role, long expirationMs) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + expirationMs);
@@ -58,7 +58,7 @@ public class JwtTokenProvider {
         return builder.compact();
     }
 
-    // 3. 토큰에서 UUID 추출 (String으로 반환하되, 호출부에서 변환)
+    //토큰에서 UUID 추출 (String으로 반환하되, 호출부에서 변환)
     public String getPayload(String token) {
         try {
             return Jwts.parser()
@@ -91,5 +91,18 @@ public class JwtTokenProvider {
             log.warn("JWT 토큰이 잘못되었습니다.");
         }
         return false;
+    }
+
+    public String getRole(String token) {
+        try {
+            return Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .get("role", String.class);
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
     }
 }

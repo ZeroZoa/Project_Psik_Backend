@@ -2,7 +2,8 @@ package com.zerozoa.skinner.service;
 
 import com.zerozoa.skinner.domain.member.Member;
 import com.zerozoa.skinner.dto.auth.OAuthAttributes;
-import com.zerozoa.skinner.global.exception.MemberNotFoundException;
+import com.zerozoa.skinner.global.exception.BusinessException;
+import com.zerozoa.skinner.global.exception.ErrorCode;
 import com.zerozoa.skinner.repository.MemberRepository;
 import com.zerozoa.skinner.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +49,7 @@ public class MemberService {
                 .orElseThrow(() -> {
                     log.warn("[Service] Member not found. uuid={}", uuid);
                     // [Refactor] 명확한 커스텀 예외 사용 (404 Status로 매핑하기 위함)
-                    return new MemberNotFoundException(uuid);
+                    return new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
                 });
     }
 

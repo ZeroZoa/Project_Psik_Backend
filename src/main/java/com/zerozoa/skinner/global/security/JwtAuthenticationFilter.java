@@ -15,6 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -25,31 +26,44 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
-        // 1. Request Header에서 토큰 추출
         String token = resolveToken(request);
 
-        // 2. 토큰 유효성 검사
+        //토큰 유효성 검사 -> 토큰이 없거나, 유효하지 않다면 바로 필터
         if (token != null && jwtTokenProvider.validateToken(token)) {
-            // 3. 토큰에서 값 추출 (UUID, Role 등)
-            // 실무 Tip: DB를 매번 조회하지 않고, 토큰에 있는 정보만으로 인증 객체를 만들어서 부하를 줄입니다.
-            String uuid = jwtTokenProvider.getPayload(token);
 
-            // 토큰에 Role 정보가 포함되어 있다면 꺼내서 넣고, 없다면 기본값(USER) 설정
-            // 여기서는 단순화를 위해 ROLE_USER로 고정하거나 Provider에서 꺼내오는 방식을 씁니다.
-            // (JwtTokenProvider에 getRole()을 추가하거나, DB 조회를 최소화하는 전략 선택)
+            //토큰에서 핵심 정보 -> UUID Role 추출
+            String uuidString = jwtTokenProvider.getPayload(token);
+            String role = jwtTokenProvider.getRole(token);
 
-            // 인증 객체 생성 (Principal: uuid)
+            //Role이 없는 경우 디폴트 값 "ROLE_USER"로 설정
+            if (role == null) {
+                role = "ROLE_USER";
+            }
+
+            //UUID 변환 String을 UUID 객체로 변환하여 Controller에서 @AuthenticationPrincipal로 접근을 도와줌
+            UUID uuid;
+            try {
+                uuid = UUID.fromString(uuidString);
+            } catch (IllegalArgumentException e) {
+                log.error("Invalid UUID in Token: {}", uuidString);
+                // UUID가 깨졌다면 인증 실패 처리 -> 필터 진행시키면 뒤에서 401/403 뜸
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            //매 요청마다 DB를 조회하여 사용자 객체를 찾지않고, JWT의 정보를 통해 인증 객체 생성
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    uuid,
+                    uuid, // Principal: UUID 객체를 삽입
                     null,
-                    Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")) // 권한 부여
+                    Collections.singleton(new SimpleGrantedAuthority(role)) // 실제 권한 부여
             );
 
-            // 4. SecurityContext에 저장 (이제 Spring Security는 이 요청을 '로그인 된 유저'로 인식)
+            //SecurityContext에 저장 -> 현재 사용자는 인증받은 사용자임을 공시
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.debug("Security Context에 '{}' 인증 정보를 저장했습니다.", uuid);
+            log.debug("Security Context Save - UUID: {}, Role: {}", uuid, role);
         }
 
+        //비로그인 상태로 컨트롤러 접근(일부 기능만)
         filterChain.doFilter(request, response);
     }
 

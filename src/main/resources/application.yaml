@@ -26,6 +26,9 @@ jwt:
   access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS}
   refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS}
 
+app:
+  oauth2:
+    redirect-uri: http://localhost:3000/oauth/callback
 
 #서버 포트 설정
 server:
