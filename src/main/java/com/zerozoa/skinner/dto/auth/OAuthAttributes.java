@@ -51,14 +51,32 @@ public record OAuthAttributes(
         //프로필 사진 추출
         Map<String, Object> kakaoProfile = (Map<String, Object>) kakaoAccount.get("profile");
 
+        //OAuth ID 추출 (카카오 PK)
+        String oauthId = String.valueOf(attributes.get(userNameAttributeName));
+        //이메일 추출 시도 (나중에 심사 통과 후 YAML 주석만 풀면 자동으로 들어옴)
+        String email = (String) kakaoAccount.get("email");
+        //[Fallback] 이메일이 없는 경우(심사 전) -> '고유번호@kakao.social'로 임시 생성
+        if (email == null || email.isBlank()) {
+            email = oauthId + "@kakao.social";
+        }
+
+        String rawPhone = (String) kakaoAccount.get("phone_number");
+        String formattedPhone = null;
+        if (rawPhone != null) {
+            formattedPhone = rawPhone.startsWith("+82 ")
+                    ? rawPhone.replace("+82 ", "0")
+                    : rawPhone;
+        }
+
         return OAuthAttributes.builder()
                 .provider(Provider.KAKAO)
-                .oauthId(String.valueOf(attributes.get(userNameAttributeName))) // "id"
+                .oauthId(oauthId) // "id"
                 //카카오 설정에 따라 profile이 없을수도 있기때문에 null체크
                 .nickname(kakaoProfile != null ? (String) kakaoProfile.get("nickname") : null)
-                .email((String) kakaoAccount.get("email"))
+                .email(email)
+                //.email((String) kakaoAccount.get("email"))
                 .profileImageUrl(kakaoProfile != null ? (String) kakaoProfile.get("profile_image_url") : null)
-                .phoneNumber((String) kakaoAccount.get("phone_number")) // 국내 번호 포맷 (+82 10...)
+                .phoneNumber(formattedPhone) // 국내 번호 포맷 (+82 10...)
                 .attributes(attributes)
                 .nameAttributeKey(userNameAttributeName)
                 .build();
@@ -71,7 +89,7 @@ public record OAuthAttributes(
 
         return OAuthAttributes.builder()
                 .provider(Provider.NAVER)
-                .oauthId((String) response.get("id"))
+                .oauthId(String.valueOf(response.get("id")))
                 .nickname((String) response.get("nickname"))
                 .email((String) response.get("email"))
                 .profileImageUrl((String) response.get("profile_image"))
@@ -82,7 +100,7 @@ public record OAuthAttributes(
     }
 
     private static OAuthAttributes ofApple(String userNameAttributeName, Map<String, Object> attributes) {
-        // [주의] 애플은 최초 로그인 시에만 email, name을 줍니다.
+        // [주의] 애플은 최초 로그인 시에만 email, name을 제공
         // 2번째 로그인부터는 'sub'(oauthId)만 주므로, null 체크가 필수입니다.
         // 실무에서는 별도의 AppleClient를 구현하여 identity_token을 디코딩하는 방식을 권장합니다.
         return OAuthAttributes.builder()
