@@ -3,6 +3,7 @@ package com.zerozoa.skinner.domain.member;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+//회원의 권한을 정의하는 Enum 클래스
 @Getter
 @RequiredArgsConstructor
 public enum Role {

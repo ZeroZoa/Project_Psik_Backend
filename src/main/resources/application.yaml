@@ -2,14 +2,17 @@ spring:
   application:
     name: skinner
 
-  #데이터베이스 연결 설정
+  profiles:
+    active: local
+
+  # 데이터베이스 연결 설정
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
-  #JPA & Hibernate 설정
+  # JPA & Hibernate 설정
   jpa:
     open-in-view: false
     hibernate:
@@ -23,6 +26,7 @@ spring:
   security:
     oauth2:
       client:
+        # [1] 등록 (Registration): 카카오와 구글이 나란히 있어야 함
         registration:
           kakao:
             client-id: ${KAKAO_CLIENT_ID}
@@ -32,10 +36,17 @@ spring:
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
             scope:
               - profile_nickname
-              #- account_email
+              # - account_email (심사 전 주석 처리 잘하셨습니다)
             client-name: Kakao
 
-        # 카카오 Provider 설정
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            #redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope:
+              - profile
+              - email
+
         provider:
           kakao:
             authorization-uri: https://kauth.kakao.com/oauth/authorize
@@ -43,7 +54,7 @@ spring:
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
 
-#jwt 설정
+# JWT 설정
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS}
@@ -51,14 +62,19 @@ jwt:
 
 app:
   oauth2:
-    redirect-uri: http://localhost:3000/oauth/callback
+    # redirect-uri: "skinner://callback"
+    redirect-uri: "http://localhost:3000/callback.html"
 
-#서버 포트 설정
+# 서버 포트 설정
 server:
   port: ${SERVER_PORT}
 
-#로그 레벨 설정
+# 로그 레벨 설정
 logging:
   level:
     root: INFO
-    org.hibernate.SQL: DEBUG # 쿼리 로그 보기
+    org.hibernate.SQL: DEBUG
+
+springdoc:
+  querydsl:
+    enabled: false
