@@ -45,38 +45,41 @@ public record OAuthAttributes(
 
     @SuppressWarnings("unchecked")
     private static OAuthAttributes ofKakao(String userNameAttributeName, Map<String, Object> attributes) {
-        //이메일, 전화번호, 프로필 전부 kakaoAccount에 있음
-        //kakao_account 에서 이메일, 전화번호 등을 추출
-        Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
-        //프로필 사진 추출
-        Map<String, Object> kakaoProfile = (Map<String, Object>) kakaoAccount.get("profile");
 
-        //OAuth ID 추출 (카카오 PK)
-        String oauthId = String.valueOf(attributes.get(userNameAttributeName));
-        //이메일 추출 시도 (나중에 심사 통과 후 YAML 주석만 풀면 자동으로 들어옴)
-        String email = (String) kakaoAccount.get("email");
-        //[Fallback] 이메일이 없는 경우(심사 전) -> '고유번호@kakao.social'로 임시 생성
-        if (email == null || email.isBlank()) {
-            email = oauthId + "@kakao.social";
+        Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
+        if (kakaoAccount == null) {
+            // 계정 정보가 없으면 빈 맵으로 초기화하여 null 값 방지
+            kakaoAccount = Map.of();
         }
 
+        //프로필 null 확인
+        Map<String, Object> kakaoProfile = (Map<String, Object>) kakaoAccount.get("profile");
+
+        //OAuth ID 추출
+        String oauthId = String.valueOf(attributes.get(userNameAttributeName));
+
+        //이메일 Fallback 로직 (유지)
+        String email = (String) kakaoAccount.get("email");
+        if (email == null || email.isBlank()) {
+            email = oauthId + "@kakao.social"; // 임시 이메일 발급
+        }
+
+        //전화번호 substring
         String rawPhone = (String) kakaoAccount.get("phone_number");
         String formattedPhone = null;
         if (rawPhone != null) {
             formattedPhone = rawPhone.startsWith("+82 ")
-                    ? rawPhone.replace("+82 ", "0")
+                    ? "0" + rawPhone.substring(4)
                     : rawPhone;
         }
 
         return OAuthAttributes.builder()
                 .provider(Provider.KAKAO)
-                .oauthId(oauthId) // "id"
-                //카카오 설정에 따라 profile이 없을수도 있기때문에 null체크
-                .nickname(kakaoProfile != null ? (String) kakaoProfile.get("nickname") : null)
+                .oauthId(oauthId)
+                .nickname(kakaoProfile != null ? (String) kakaoProfile.get("nickname") : "Unknown") // 닉네임 없을 경우 기본값
                 .email(email)
-                //.email((String) kakaoAccount.get("email"))
                 .profileImageUrl(kakaoProfile != null ? (String) kakaoProfile.get("profile_image_url") : null)
-                .phoneNumber(formattedPhone) // 국내 번호 포맷 (+82 10...)
+                .phoneNumber(formattedPhone)
                 .attributes(attributes)
                 .nameAttributeKey(userNameAttributeName)
                 .build();

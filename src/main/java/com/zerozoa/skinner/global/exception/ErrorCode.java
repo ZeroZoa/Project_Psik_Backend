@@ -19,6 +19,9 @@ public enum ErrorCode {
     //401(비로그인)과 403(권한없음)은 엄격히 구분
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "A003", "접근 권한이 없습니다."),
 
+    //INGREDIENT (성분)
+    INGREDIENT_NOT_FOUND(HttpStatus.NOT_FOUND, "I001", "해당 성분 정보를 찾을 수 없습니다."),
+
     //Common
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "C001", "잘못된 입력값입니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C002", "서버 내부 오류가 발생했습니다.");

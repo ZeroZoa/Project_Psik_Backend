@@ -9,14 +9,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.util.UUID;
 
-
+//회원 엔티티
+//물리적 ID는 Long타입 -> DB 성능 및 조인 효율성을 위함
+//논리적 ID는 UUID v7을 사용 -> 외부 API 노출용 -> 보안성 강화
 @Entity
 @Table(name = "members", indexes = {
+        //UUID로 조회시 속도 향상
         @Index(name = "idx_member_uuid", columnList = "uuid", unique = true), //uuid를 통해 인덱스 생성
+        //소셜 로그인 제공자 + ID 조합으로 복합인덱스 설정
         @Index(name = "idx_member_oauth", columnList = "provider, oauth_id", unique = true) //Provider, oauthId를 통해 복합 인덱스 생성
 })
 @Getter
@@ -71,6 +74,7 @@ public class Member extends BaseTimeEntity {
         this.role = role;
     }
 
+    //엔티티가 DB에 저장되기 전 실행되어 UUID가 없다면 생성
     @PrePersist
     public void generateUuid() {
         if (this.uuid == null) {

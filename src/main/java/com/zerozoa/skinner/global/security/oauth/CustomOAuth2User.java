@@ -12,6 +12,10 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ *Custom OAuth2 User
+ *스프링 시큐리티의 SecurityContext에 저장될 사용자 객체
+ */
 @Getter
 public class CustomOAuth2User implements OAuth2User, Serializable {
     //직렬화 ID

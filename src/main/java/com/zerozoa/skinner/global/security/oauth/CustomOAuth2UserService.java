@@ -3,7 +3,7 @@ package com.zerozoa.skinner.global.security.oauth;
 import com.zerozoa.skinner.domain.member.Member;
 import com.zerozoa.skinner.domain.member.Provider;
 import com.zerozoa.skinner.dto.auth.OAuthAttributes;
-import com.zerozoa.skinner.repository.MemberRepository;
+import com.zerozoa.skinner.repository.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -16,6 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 
+
+/**
+ *OAuth2 사용자 정보 서비스
+ *소셜 로그인(카카오, 구글 등) 완료 후, 사용자 정보를 가져와서 우리 DB에 저장하거나 갱신
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -26,11 +31,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     @Override
     @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
-        //소셜 서비스에서 유저 정보 가져오기
+
+        //소셜 로그인 API를 통해 사용자 정보 가져오기
         OAuth2User oauth2User = super.loadUser(userRequest);
         Map<String, Object> originAttributes = oauth2User.getAttributes();
 
-        //OAuth2UserRequest객체에서 registrationId 추출 (kakao, naver, google)
+        //소셜 서비스 Provider 구분 (google, kakao, naver 등)
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
 
         //OAuth2UserRequest객체에서 userNameAttributeName 추출
@@ -68,17 +74,20 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     // 회원 가입 및 정보 업데이트 로직
     private Member saveOrUpdate(OAuthAttributes attributes) {
-        // [성능] idx_member_oauth (provider + oauthId) 인덱스 활용
-        return memberRepository.findByProviderAndOauthId(attributes.provider(), attributes.oauthId())
+        Member member = memberRepository.findByProviderAndOauthId(attributes.provider(), attributes.oauthId())
                 .map(entity -> {
-                    //정보 업데이트
+                    //기존 회원 로그인 로깅
+                    log.info("Existing Member Login: {} ({})", attributes.email(), attributes.provider());
                     entity.updateSocialInfo(attributes.email(), attributes.phoneNumber());
                     entity.updateProfile(attributes.nickname(), attributes.profileImageUrl());
                     return entity;
                 })
                 .orElseGet(() -> {
-                    //DTO의 toEntity() 메서드 활용
-                    return memberRepository.save(attributes.toEntity());
+                    //신규 회원 가입 로깅
+                    log.info("New Member Signup: {} ({})", attributes.email(), attributes.provider());
+                    return attributes.toEntity();
                 });
+
+        return memberRepository.save(member);
     }
 }

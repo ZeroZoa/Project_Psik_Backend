@@ -2,6 +2,10 @@ package com.zerozoa.skinner.global.security.oauth.info;
 
 import java.util.Map;
 
+/**
+ *카카오 사용자 정보 구현체
+ *카카오의 사용자 정보 Response는 계층형 JSON 구조를 가집니다.
+ */
 public class KakaoOAuth2UserInfo implements OAuth2UserInfo {
     private final Map<String, Object> attributes; // oauth2User.getAttributes() 원본
     private final Map<String, Object> kakaoAccount;
@@ -9,14 +13,15 @@ public class KakaoOAuth2UserInfo implements OAuth2UserInfo {
 
     public KakaoOAuth2UserInfo(Map<String, Object> attributes) {
         this.attributes = attributes;
-        // 카카오 데이터 구조 파싱 (Null 체크는 실무에서 더 꼼꼼히 하지만, 기본 구조는 이렇습니다)
+        //kakao_account 추출
         this.kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
+
         this.profile = (Map<String, Object>) kakaoAccount.get("profile");
     }
 
     @Override
     public String getProviderId() {
-        // 카카오 ID는 Long 타입으로 오기 때문에 String 변환 필요
+        // 카카오 ID는 Long 타입으로 오기 때문에 String 변환
         return String.valueOf(attributes.get("id"));
     }
 

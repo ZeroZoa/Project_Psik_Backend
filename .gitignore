@@ -39,3 +39,7 @@ out/
 
 db/
 db/data/
+
+### QueryDSL Generated ###
+/src/main/generated/
+**/Q*.java
