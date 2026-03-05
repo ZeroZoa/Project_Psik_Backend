@@ -9,6 +9,7 @@ public record ProductDto(
         String name,
         String brand,
         Long price,
+        String description,
         String imageUrl,
         String link
 ) {
@@ -18,6 +19,7 @@ public record ProductDto(
                 .name(product.getName())
                 .brand(product.getBrand())
                 .price(product.getPrice())
+                .description(product.getDescription())
                 .imageUrl(product.getImageUrl())
                 .link(product.getLink())
                 .build();

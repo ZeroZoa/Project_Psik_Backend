@@ -42,6 +42,7 @@ public class IngredientRepositoryImpl implements IngredientRepositoryCustom {
         //카운트 쿼리 (최적화: 데이터가 적거나 페이지 초과 시 실행 안 함)
         JPAQuery<Long> countQuery = queryFactory
                 .select(ingredient.count())
+                .from(ingredient)
                 .where(
                         containKeyword(keyword),
                         eqType(type)

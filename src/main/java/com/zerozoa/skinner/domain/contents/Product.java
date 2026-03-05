@@ -3,9 +3,9 @@ package com.zerozoa.skinner.domain.contents;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.HashSet;
+import java.util.Set;
 
-//특정 Ingredient 성분이 포함된 제품을 위한 엔티티
-//Ingredient와 일대다 관계
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -22,31 +22,27 @@ public class Product {
 
     private Long price;
 
+    // [추가] 제품 설명
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @Column(length = 1000)
     private String link;
 
     @Column(length = 1000)
     private String imageUrl;
 
-    //N+1 문제 방지: EAGER 설정 시, 제품 목록 조회만 해도 성분 조회 쿼리가 N번 추가로 발생함
-    //불필요한 조인 방지 : 제품 이름만 필요한 화면에서 성분 데이터까지 가져오는 낭비 방지
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ingredient_id")
-    private Ingredient ingredient;
+    // [변경] Ingredient 종속 제거 → 다대다 양방향 (Ingredient가 주인)
+    @ManyToMany(mappedBy = "products")
+    private Set<Ingredient> ingredients = new HashSet<>();
 
     @Builder
-    public Product(String name, String brand, Long price, String link, String imageUrl, Ingredient ingredient) {
+    public Product(String name, String brand, Long price, String description, String link, String imageUrl) {
         this.name = name;
         this.brand = brand;
         this.price = price;
+        this.description = description;
         this.link = link;
         this.imageUrl = imageUrl;
-        this.ingredient = ingredient;
-    }
-
-    //연관관계 편의 메서드
-    //Ingredient 엔티티에서 호출 시 사용
-    public void setIngredient(Ingredient ingredient) {
-        this.ingredient = ingredient;
     }
 }

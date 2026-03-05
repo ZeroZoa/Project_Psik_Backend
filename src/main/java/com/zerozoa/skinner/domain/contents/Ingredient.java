@@ -62,8 +62,13 @@ public class Ingredient {
 
     // BatchSize: 제품 목록 N+1 방지
     @BatchSize(size = 100)
-    @OneToMany(mappedBy = "ingredient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Product> products = new ArrayList<>();
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinTable(
+            name = "ingredient_product",
+            joinColumns = @JoinColumn(name = "ingredient_id"),
+            inverseJoinColumns = @JoinColumn(name = "product_id")
+    )
+    private Set<Product> products = new HashSet<>();
 
 
     @Builder
@@ -87,10 +92,10 @@ public class Ingredient {
         this.tags.add(tag);
     }
 
+    // [변경] 양방향 동기화 — Product.ingredients에도 this 추가
     public void addProduct(Product product) {
         this.products.add(product);
-        // [중요] 양방향 연관관계 주인(Product)에게 '나(this)'를 알려줘야 DB FK가 저장됨
-        product.setIngredient(this);
+        product.getIngredients().add(this);
     }
 }
 

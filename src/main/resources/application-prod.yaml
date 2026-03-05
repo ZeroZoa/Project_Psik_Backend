@@ -1,0 +1,29 @@
+# ============================================
+# 운영(Production) 프로필 설정
+# 사용법: --spring.profiles.active=prod
+# ============================================
+
+spring:
+  jpa:
+    hibernate:
+      # [필수] 운영에서는 스키마 자동 변경 차단
+      # Flyway/Liquibase로 마이그레이션 관리 권장
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+        show_sql: false
+
+# 쿠키 보안 설정 (HTTPS 환경)
+app:
+  cookie:
+    secure: true
+  oauth2:
+    success-redirect-uri: ${FRONTEND_URL:https://psik.app}/home
+
+# 로그 레벨 (운영은 WARN 이상만)
+logging:
+  level:
+    root: WARN
+    com.zerozoa.skinner: INFO
+    org.hibernate.SQL: WARN

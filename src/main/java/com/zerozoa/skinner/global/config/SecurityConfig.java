@@ -43,8 +43,7 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     /**
      *Security Filter Chain
@@ -72,7 +71,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/members/check-nickname").permitAll()
                         .requestMatchers("/api/ingredients/**").permitAll()
 
+                        // 스킨 다이어리, 글, 댓글은 인증된 사용자만 접근 가능
+                        .requestMatchers("/api/diaries/**").authenticated()
+                        .requestMatchers("/api/posts/**").authenticated()
+                        .requestMatchers("/api/comments/**").authenticated()
+
                         // 그 외 요청
+                        .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated()
                 )
