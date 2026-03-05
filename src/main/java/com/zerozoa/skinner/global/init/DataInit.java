@@ -32,21 +32,18 @@ public class DataInit implements CommandLineRunner {
 
         log.info("[DataInit] 초기 데이터 적재 시작...");
 
-        //태그 생성
-        // 트러블 관련
+        // 태그 생성
         Tag acneTag = tagRepository.save(new Tag("#여드름"));
         Tag inflammationTag = tagRepository.save(new Tag("#염증"));
         Tag soothingTag = tagRepository.save(new Tag("#진정"));
         Tag recoveryTag = tagRepository.save(new Tag("#회복"));
         Tag scarTag = tagRepository.save(new Tag("#흉터/자국"));
 
-        // 피지/모공 관련
         Tag poreTag = tagRepository.save(new Tag("#모공"));
         Tag sebumTag = tagRepository.save(new Tag("#피지조절"));
         Tag whiteHeadTag = tagRepository.save(new Tag("#좁쌀/화이트헤드"));
         Tag blackHeadTag = tagRepository.save(new Tag("#블랙헤드"));
 
-        // 기능성 관련 (미백, 주름)
         Tag whiteningTag = tagRepository.save(new Tag("#미백"));
         Tag wrinkleTag = tagRepository.save(new Tag("#주름"));
 
@@ -66,7 +63,6 @@ public class DataInit implements CommandLineRunner {
         retinoid.addEffect("피부 재생 촉진");
         retinoid.addEffect("피부 주름 개선");
 
-
         retinoid.addCaution("유효 농도 0.1% 이상 사용하는게 좋아요!");
         retinoid.addCaution("산화가 빨라 개봉하지 않더라도 빨리 사용하는게 좋고 직사광선을 피해 보관해야해요!");
         retinoid.addCaution("미개봉이더라도 6개월 정도면 산화되어 효과가 없어요!");
@@ -75,6 +71,17 @@ public class DataInit implements CommandLineRunner {
         retinoid.addTag(recoveryTag);
         retinoid.addTag(wrinkleTag);
         retinoid.addTag(whiteningTag);
+
+        // [변경] Product 생성 — ingredient 파라미터 제거, addProduct()로 관계 설정
+        // 나중에 제품 데이터가 추가되면 이런 식으로:
+        // Product retinolSerum = Product.builder()
+        //         .name("이니스프리 레티놀 시카 세럼")
+        //         .brand("이니스프리")
+        //         .price(25000L)
+        //         .description("레티놀과 시카 성분이 함유된 세럼")
+        //         .build();
+        // retinoid.addProduct(retinolSerum);
+        // niacinamide.addProduct(retinolSerum); // 같은 제품을 여러 성분에 매핑 가능!
 
         ingredientRepository.save(retinoid);
 
@@ -94,7 +101,6 @@ public class DataInit implements CommandLineRunner {
         niacinamide.addEffect("붉은 기 개선");
 
         niacinamide.addCaution("2~5%의 농도로도 충분해요!");
-
 
         niacinamide.addTag(sebumTag);
         niacinamide.addTag(wrinkleTag);
@@ -151,7 +157,6 @@ public class DataInit implements CommandLineRunner {
         // =============================================================
         // 아데노신
         // =============================================================
-
         Ingredient adenosine = Ingredient.builder()
                 .name("아데노신")
                 .type(IngredientType.GENERAL)
@@ -171,31 +176,6 @@ public class DataInit implements CommandLineRunner {
         adenosine.addTag(soothingTag);
 
         ingredientRepository.save(adenosine);
-
-        // =============================================================
-        // 덱스판테놀
-        // =============================================================
-
-//        Ingredient dexpanthenol = Ingredient.builder()
-//                .name("덱스판테놀")
-//                .type(IngredientType.GENERAL)
-//                .description("")
-//                .build();
-//
-//        dexpanthenol.addEffect("피부 재생 촉진");
-//        dexpanthenol.addEffect("피부 주름 개선");
-//        dexpanthenol.addEffect("피부 콜라겐 증가");
-//
-//        dexpanthenol.addCaution("유효 농도 0.1%이상 사용하는게 좋아요!");
-//        dexpanthenol.addCaution("산화 걱정이 없어요");
-//        dexpanthenol.addCaution("예민하고 자극적이지 않아요!");
-//
-//        dexpanthenol.addTag(recoveryTag);
-//        dexpanthenol.addTag(wrinkleTag);
-//        dexpanthenol.addTag(soothingTag);
-//
-//        ingredientRepository.save(dexpanthenol);
-
 
         log.info("[DataInit] 초기 데이터 적재 완료! (Ingredient: {})", ingredientRepository.count());
     }

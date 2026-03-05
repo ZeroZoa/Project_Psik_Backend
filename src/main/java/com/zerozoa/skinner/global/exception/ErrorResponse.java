@@ -28,4 +28,16 @@ public class ErrorResponse {
                         .build()
                 );
     }
+
+    public static ResponseEntity<ErrorResponse> toResponseEntity(ErrorCode errorCode, String customMessage) {
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.builder()
+                        .status(errorCode.getStatus().value())
+                        .error(errorCode.getStatus().name())
+                        .code(errorCode.getCode())
+                        .message(customMessage)
+                        .build()
+                );
+    }
 }
