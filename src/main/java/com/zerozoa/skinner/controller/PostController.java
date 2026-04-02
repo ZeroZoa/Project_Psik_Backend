@@ -51,13 +51,13 @@ public class PostController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @Operation(summary = "게시글 목록 조회", description = "sort: latest(기본), likes, views")
+    @Operation(summary = "게시글 목록 조회", description = "sortBy: latest(기본), likes, views")
     @GetMapping
     public ResponseEntity<Page<PostResponse>> getPosts(
-            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(defaultValue = "latest") String sortBy,  // sort → sortBy
             @PageableDefault(size = 20) Pageable pageable
     ) {
-        Page<PostResponse> response = switch (sort) {
+        Page<PostResponse> response = switch (sortBy) {  // sort → sortBy
             case "likes" -> postService.getPostsByLikes(pageable);
             case "views" -> postService.getPostsByViews(pageable);
             default -> postService.getPosts(pageable);
@@ -71,7 +71,8 @@ public class PostController {
             @Parameter(hidden = true) @AuthenticationPrincipal Object principal,
             @PathVariable Long postId
     ) {
-        UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        // 비로그인 사용자도 상세 조회 가능 (principal이 null일 수 있음)
+        UUID memberUuid = (principal instanceof UUID) ? (UUID) principal : null;
         return ResponseEntity.ok(postService.getPost(postId, memberUuid));
     }
 
@@ -91,6 +92,10 @@ public class PostController {
         return ResponseEntity.ok(postService.updatePost(memberUuid, postId, request, images));
     }
 
+    /**
+     * 게시글 삭제
+     * 연관관계도 삭제확인
+     */
     @Operation(summary = "게시글 삭제")
     @DeleteMapping("/{postId}")
     public ResponseEntity<Void> deletePost(

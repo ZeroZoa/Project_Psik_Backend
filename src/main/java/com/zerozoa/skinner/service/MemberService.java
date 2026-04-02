@@ -2,6 +2,8 @@ package com.zerozoa.skinner.service;
 
 import com.zerozoa.skinner.domain.member.Member;
 import com.zerozoa.skinner.dto.auth.OAuthAttributes;
+import com.zerozoa.skinner.dto.member.ProfileSetupRequest;
+import com.zerozoa.skinner.dto.member.SkinConcernUpdateRequest;
 import com.zerozoa.skinner.global.exception.BusinessException;
 import com.zerozoa.skinner.global.exception.ErrorCode;
 import com.zerozoa.skinner.repository.member.MemberRepository;
@@ -49,7 +51,7 @@ public class MemberService {
     }
 
     /**
-     * 회원의 고유 식별자(UUID)를 사용하여 회원 정보를 조회
+     * 회원 정보를 조회
      * @param uuid 조회할 회원의 UUID (API 토큰에서 추출한 값)
      * @return 조회된 {@link Member} 엔티티
      * @throws BusinessException 회원을 찾을 수 없는 경우 {@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
@@ -63,12 +65,84 @@ public class MemberService {
     }
 
     /**
-     * 닉네임 중복 여부를 확인
+     * 닉네임 중복 확인
      * @param nickname 중복 검사할 닉네임
      * @return 중복이면 {@code true}, 사용 가능하면 {@code false}
      */
     public boolean isNicknameDuplicate(String nickname) {
         return memberRepository.existsByNickname(nickname);
+    }
+
+    /**
+     * 닉네임 수정
+     * @param uuid@param nickname 조회할 회원의 UUID (API 토큰에서 추출한 값)
+     * @return {@link Member} 엔티티
+     * @throws BusinessException 닉네임이 중복인 경우 {@link ErrorCode#NICKNAME_ALREADY_EXISTS} 예외 발생
+     */
+    @Transactional
+    public Member updateNickname(UUID uuid, String nickname) {
+        Member member = getByUuid(uuid);
+
+        // 현재 닉네임과 같으면 그냥 반환
+        if (nickname.equals(member.getNickname())) {
+            return member;
+        }
+
+        // 중복 체크
+        if (memberRepository.existsByNickname(nickname)) {
+            throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
+
+        member.updateProfile(nickname, null);
+        return member;
+    }
+
+    /**
+     * 피부고민 수정
+     * @param uuid 설정할 회원의 UUID
+     * @param request 피부고민 설정 요청 DTO
+     * @return {@link Member} 엔티티
+     */
+    @Transactional
+    public Member updateSkinConcerns(UUID uuid, SkinConcernUpdateRequest request) {
+        Member member = getByUuid(uuid);
+        member.updateSkinConcerns(request.skinConcerns());
+        return memberRepository.save(member);
+    }
+
+    /**
+     * 최초 프로필 설정 (소셜 로그인 신규 회원 전용)
+     * @param uuid 설정할 회원의 UUID
+     * @param request 프로필 설정 요청 DTO
+     * @return 설정 완료된 {@link Member}
+     * @throws BusinessException profileComplete 가 이미 true 인 경우
+     * @throws BusinessException 닉네임 중복인 경우
+     */
+    @Transactional
+    public Member setupProfile(UUID uuid, ProfileSetupRequest request) {
+        Member member = getByUuid(uuid);
+
+        // 이미 프로필 설정 완료된 회원은 재설정 불가
+        if (member.isProfileComplete()) {
+            throw new BusinessException(ErrorCode.PROFILE_ALREADY_COMPLETE);
+        }
+        
+        // 닉네임 중복 검사 (본인 닉네임 제외)
+        if (!request.nickname().equals(member.getNickname())
+                && memberRepository.existsByNickname(request.nickname())) {
+            throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
+
+        member.setupProfile(
+                request.nickname(),
+                request.gender(),
+                request.birthYear(),
+                request.skinType(),
+                request.skinConcerns()
+        );
+
+        log.info("[Profile] Setup Complete: uuid={}, nickname={}", uuid, request.nickname());
+        return member;
     }
 
     /**

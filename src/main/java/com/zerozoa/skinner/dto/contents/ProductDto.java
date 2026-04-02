@@ -11,7 +11,8 @@ public record ProductDto(
         Long price,
         String description,
         String imageUrl,
-        String link
+        String link,
+        long ownedCount
 ) {
     public static ProductDto from(Product product) {
         return ProductDto.builder()
@@ -22,6 +23,7 @@ public record ProductDto(
                 .description(product.getDescription())
                 .imageUrl(product.getImageUrl())
                 .link(product.getLink())
+                .ownedCount(product.getOwnedCount())
                 .build();
     }
 }

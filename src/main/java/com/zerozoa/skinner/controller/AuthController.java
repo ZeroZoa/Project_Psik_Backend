@@ -71,4 +71,37 @@ public class AuthController {
         cookie.setMaxAge(7 * 24 * 60 * 60);
         response.addCookie(cookie);
     }
+
+    /**
+     * [#4] 로그아웃
+     * Refresh Token 쿠키 삭제 + DB에서 토큰 삭제
+     */
+    @Operation(summary = "로그아웃", description = "Refresh Token을 무효화하고 쿠키를 삭제합니다.")
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        // DB에서 Refresh Token 삭제
+        String refreshToken = getRefreshToken(request);
+        if (refreshToken != null) {
+            authService.logout(refreshToken);
+        }
+
+        // Refresh Token 쿠키 만료 처리
+        Cookie cookie = new Cookie("refreshToken", null);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(cookieSecure);
+        cookie.setPath("/");
+        cookie.setMaxAge(0); // 즉시 만료
+        response.addCookie(cookie);
+
+        // Access Token 쿠키도 만료 처리
+        Cookie accessCookie = new Cookie("accessToken", null);
+        accessCookie.setPath("/");
+        accessCookie.setMaxAge(0);
+        response.addCookie(accessCookie);
+
+        return ResponseEntity.noContent().build();
+    }
 }

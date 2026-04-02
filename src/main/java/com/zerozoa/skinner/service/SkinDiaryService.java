@@ -158,6 +158,17 @@ public class SkinDiaryService {
         skinDiaryRepository.delete(skinDiary);
     }
 
+    // 기간별 다이어리 조회 (그래프용)
+    public List<SkinDiaryResponse> getDiariesByRange(UUID memberUuid, Instant from, Instant to) {
+        Member member = memberRepository.findByUuid(memberUuid)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        return skinDiaryRepository.findMonthlyDiaries(member, from, to)
+                .stream()
+                .map(SkinDiaryResponse::from)
+                .toList();
+    }
+
     /**
      * Instant를 KST 기준 자정(00:00:00.000)으로 정규화
      * 클라이언트가 어떤 시간을 보내든 해당 날짜의 자정으로 통일하여 저장

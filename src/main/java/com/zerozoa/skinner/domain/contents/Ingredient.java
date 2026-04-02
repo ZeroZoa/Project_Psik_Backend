@@ -1,5 +1,6 @@
 package com.zerozoa.skinner.domain.contents;
 
+import com.zerozoa.skinner.domain.member.SkinConcern;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -33,6 +34,9 @@ public class Ingredient {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(length = 100)
+    private String effectSummary;
+
     //효과 리스트
     //effects는 객체일 필요없음 -> 텍스트데이터 -> 값 타입 컬렉션으로 처리하여 생명주기를 부모에게 양도(생명주기가 성분에 종속)
     //effects리스트의 테이블 이름 설정 + ingredient_id를 통해 부모 테이블 연결
@@ -50,14 +54,13 @@ public class Ingredient {
     @Column(name = "caution")
     private List<String> cautions = new ArrayList<>();
 
-    //해시태그는 관리가 필요없는 간단한 객체 따라서 중각 테이블로 분리한 관계대신 바로 @ManyToMany사용
-    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
-    @JoinTable(
-            name = "ingredient_tags",
-            joinColumns = @JoinColumn(name = "ingredient_id"),
-            inverseJoinColumns = @JoinColumn(name = "tag_id")
-    )
-    private Set<Tag> tags = new HashSet<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "ingredient_skin_concerns",
+            joinColumns = @JoinColumn(name = "ingredient_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "skin_concern")
+    private List<SkinConcern> skinConcerns = new ArrayList<>();
 
 
     // BatchSize: 제품 목록 N+1 방지
@@ -72,10 +75,11 @@ public class Ingredient {
 
 
     @Builder
-    public Ingredient(String name, IngredientType type, String description) {
+    public Ingredient(String name, IngredientType type, String description, String effectSummary) {
         this.name = name;
         this.type = type;
         this.description = description;
+        this.effectSummary = effectSummary;
     }
 
     // --- 편의 메서드 ---
@@ -88,14 +92,34 @@ public class Ingredient {
         this.cautions.add(caution);
     }
 
-    public void addTag(Tag tag) {
-        this.tags.add(tag);
+    public void addSkinConcern(SkinConcern skinConcern) {
+        this.skinConcerns.add(skinConcern);
     }
 
-    // [변경] 양방향 동기화 — Product.ingredients에도 this 추가
+    //양방향 동기화 — Product.ingredients에도 this 추가
     public void addProduct(Product product) {
         this.products.add(product);
         product.getIngredients().add(this);
+    }
+
+    public void update(String name, IngredientType type,
+                       String effectSummary, String description) {
+        this.name = name;
+        this.type = type;
+        this.effectSummary = effectSummary;
+        this.description = description;
+    }
+
+    public void clearSkinConcerns() {
+        this.skinConcerns.clear();
+    }
+
+    public void clearEffects() {
+        this.effects.clear();
+    }
+
+    public void clearCautions() {
+        this.cautions.clear();
     }
 }
 

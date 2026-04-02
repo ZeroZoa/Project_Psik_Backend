@@ -1,4 +1,4 @@
-package com.zerozoa.skinner.domain.community;
+package com.zerozoa.skinner.domain.contents;
 
 import com.zerozoa.skinner.domain.member.Member;
 import jakarta.persistence.*;
@@ -13,24 +13,24 @@ import java.time.Instant;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-        name = "post_like",
+        name = "member_product",
         uniqueConstraints = {
-                //중복방지
                 @UniqueConstraint(
-                        name = "uk_post_like_post_member",
-                        columnNames = {"post_id", "member_id"}
+                        name = "uk_member_product_member_product",
+                        columnNames = {"member_id", "product_id"}
                 )
         }
 )
-public class PostLike {
+public class MemberProduct {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "post_like_id")
+    @Column(name = "member_product_id")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id", nullable = false)
-    private Post post;
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
@@ -40,9 +40,9 @@ public class PostLike {
     private Instant createdAt;
 
     @Builder
-    public PostLike(Post post, Member member) {
-        this.post = post;
+    public MemberProduct(Member member, Product product) {
         this.member = member;
+        this.product = product;
     }
 
     @PrePersist

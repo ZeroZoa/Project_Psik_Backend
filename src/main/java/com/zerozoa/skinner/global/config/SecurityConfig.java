@@ -7,7 +7,6 @@ import com.zerozoa.skinner.global.security.JwtAuthenticationFilter;
 import com.zerozoa.skinner.global.security.oauth.CustomOAuth2UserService;
 import com.zerozoa.skinner.global.security.oauth.OAuth2SuccessHandler;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -26,6 +25,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 
 import java.util.List;
+import java.util.Map;
 
 /**
  *Spring Security 설정
@@ -69,15 +69,29 @@ public class SecurityConfig {
                         .requestMatchers("/", "/css/**", "/images/**", "/js/**", "/favicon.ico").permitAll()
                         .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**").permitAll()
                         .requestMatchers("/api/members/check-nickname").permitAll()
+                        // 관리자 전용 — ADMIN 권한 필요
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/ingredients/**").permitAll()
+                        .requestMatchers("/uploads/**").permitAll()
 
-                        // 스킨 다이어리, 글, 댓글은 인증된 사용자만 접근 가능
-                        .requestMatchers("/api/diaries/**").authenticated()
+                        //프로필 - 인증 필요
+                        .requestMatchers("/api/members/me/**").authenticated()
+
+                        //게시글 — 마이페이지 전용 먼저 (GET /api/posts/me/** 보호)
+                        .requestMatchers("/api/posts/me/**").authenticated()
+                        //게시글 — GET은 공개, 나머지는 인증 필요
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/posts/**").permitAll()
                         .requestMatchers("/api/posts/**").authenticated()
+
+                        //댓글 — GET은 공개, 나머지는 인증 필요
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/posts/*/comments").permitAll()
+                        .requestMatchers("/api/posts/*/comments/**").authenticated()
                         .requestMatchers("/api/comments/**").authenticated()
 
+                        //스킨 다이어리는 전체 인증 필요
+                        .requestMatchers("/api/diaries/**").authenticated()
+
                         // 그 외 요청
-                        .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -105,21 +119,28 @@ public class SecurityConfig {
                                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                                 response.setCharacterEncoding("UTF-8");
                                 //ObjectMapper로 JSON 변환
-                                objectMapper.writeValue(response.getWriter(), new ErrorResponse(ErrorCode.INVALID_TOKEN));
+                                objectMapper.writeValue(response.getWriter(), Map.of(
+                                        "timestamp", java.time.Instant.now().toString(),
+                                        "status", 401,
+                                        "error", "UNAUTHORIZED",
+                                        "code", ErrorCode.INVALID_TOKEN.getCode(),
+                                        "message", ErrorCode.INVALID_TOKEN.getMessage()
+                                ));
                             }
 
-                            // 웹 페이지 요청인 경우 (개발 단계 디버깅용)
+                        // 웹 페이지 요청인 경우
                             else {
-//                                log.warn("[Web] Redirect to Login: {}", authException.getMessage());
-//                                // [주의] 현재는 카카오로 강제 이동. 추후 로그인 선택 페이지(/login)로 변경 권장
-//                                response.sendRedirect("/oauth2/authorization/kakao");
-                                log.error("[Web] Login Process Failed! Request URI: {}", uri, authException); // 에러 로그 출력 (중요)
-
-                                response.setContentType("text/html; charset=UTF-8");
-                                response.getWriter().write("<h1>로그인 실패 (디버깅 모드)</h1>");
-                                response.getWriter().write("<p>서버 내부 에러가 발생했습니다. IntelliJ 콘솔 로그를 확인하세요.</p>");
-                                response.getWriter().write("<p>에러 메시지: " + authException.getMessage() + "</p>");
-                                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                                log.warn("[Web] Unauthorized: URI={}", uri);
+                                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                                response.setCharacterEncoding("UTF-8");
+                                objectMapper.writeValue(response.getWriter(), Map.of(
+                                        "timestamp", java.time.Instant.now().toString(),
+                                        "status", 401,
+                                        "error", "UNAUTHORIZED",
+                                        "code", ErrorCode.INVALID_TOKEN.getCode(),
+                                        "message", ErrorCode.INVALID_TOKEN.getMessage()
+                                ));
                             }
                         })
                         // [403 Forbidden] 권한이 없는 사용자 접근 시
@@ -128,7 +149,13 @@ public class SecurityConfig {
                             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding("UTF-8");
-                            objectMapper.writeValue(response.getWriter(), new ErrorResponse(ErrorCode.ACCESS_DENIED));
+                            objectMapper.writeValue(response.getWriter(), Map.of(
+                                    "timestamp", java.time.Instant.now().toString(),
+                                    "status", 403,
+                                    "error", "FORBIDDEN",
+                                    "code", ErrorCode.ACCESS_DENIED.getCode(),
+                                    "message", ErrorCode.ACCESS_DENIED.getMessage()
+                            ));
                         })
                 )
 
@@ -168,17 +195,5 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
-    }
-
-    // SecurityConfig 안에서만 쓸 간단한 응답 객체
-    @Getter
-    static class ErrorResponse {
-        private final String code;
-        private final String message;
-
-        public ErrorResponse(ErrorCode errorCode) {
-            this.code = errorCode.getCode();
-            this.message = errorCode.getMessage();
-        }
     }
 }

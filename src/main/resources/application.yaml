@@ -94,3 +94,7 @@ logging:
 springdoc:
   querydsl:
     enabled: false
+  swagger-ui:
+    persist-authorization: true
+  api-docs:
+    path: /v3/api-docs

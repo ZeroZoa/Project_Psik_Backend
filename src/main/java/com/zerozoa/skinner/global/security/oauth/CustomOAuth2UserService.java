@@ -3,7 +3,7 @@ package com.zerozoa.skinner.global.security.oauth;
 import com.zerozoa.skinner.domain.member.Member;
 import com.zerozoa.skinner.domain.member.Provider;
 import com.zerozoa.skinner.dto.auth.OAuthAttributes;
-import com.zerozoa.skinner.repository.member.MemberRepository;
+import com.zerozoa.skinner.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -26,7 +26,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
-    private final MemberRepository memberRepository;
+    private final MemberService memberService;
 
     @Override
     @Transactional
@@ -52,7 +52,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         OAuthAttributes attributes = OAuthAttributes.of(provider, userNameAttributeName, originAttributes);
 
         //DB 저장 또는 업데이트 (Login & Signup)
-        Member member = saveOrUpdate(attributes);
+        Member member = memberService.socialLogin(attributes);
 
         //CustomUserDetails 반환 (Security Context에 저장됨)
         return new CustomOAuth2User(member, attributes.attributes());
@@ -70,24 +70,5 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     "지원하지 않는 소셜 로그인입니다: " + registrationId
             );
         }
-    }
-
-    // 회원 가입 및 정보 업데이트 로직
-    private Member saveOrUpdate(OAuthAttributes attributes) {
-        Member member = memberRepository.findByProviderAndOauthId(attributes.provider(), attributes.oauthId())
-                .map(entity -> {
-                    //기존 회원 로그인 로깅
-                    log.info("Existing Member Login: {} ({})", attributes.email(), attributes.provider());
-                    entity.updateSocialInfo(attributes.email(), attributes.phoneNumber());
-                    entity.updateProfile(attributes.nickname(), attributes.profileImageUrl());
-                    return entity;
-                })
-                .orElseGet(() -> {
-                    //신규 회원 가입 로깅
-                    log.info("New Member Signup: {} ({})", attributes.email(), attributes.provider());
-                    return attributes.toEntity();
-                });
-
-        return memberRepository.save(member);
     }
 }

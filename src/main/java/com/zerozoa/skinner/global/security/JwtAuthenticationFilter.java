@@ -1,11 +1,15 @@
 package com.zerozoa.skinner.global.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -22,52 +27,71 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider jwtTokenProvider;
+    private final ObjectMapper objectMapper;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
         String token = resolveToken(request);
 
-        //토큰 유효성 검사 -> 토큰이 없거나, 유효하지 않다면 바로 필터
-        if (token != null && jwtTokenProvider.validateToken(token)) {
-
-            //토큰에서 핵심 정보 -> UUID Role 추출
-            String uuidString = jwtTokenProvider.getPayload(token);
-            String role = jwtTokenProvider.getRole(token);
-
-            //Role이 없는 경우 디폴트 값 "ROLE_USER"로 설정
-            if (role == null) {
-                role = "ROLE_USER";
-            }
-
-            //UUID 변환 String을 UUID 객체로 변환하여 Controller에서 @AuthenticationPrincipal로 접근을 도와줌
-            UUID uuid;
+        if (token != null) {
+            // 만료/서명 오류 등 JWT 예외를 직접 캐치하여 401로 응답
             try {
-                uuid = UUID.fromString(uuidString);
-            } catch (IllegalArgumentException e) {
-                log.error("Invalid UUID in Token: {}", uuidString);
-                // UUID가 깨졌다면 인증 실패 처리 -> 필터 진행시키면 뒤에서 401/403 뜸
-                filterChain.doFilter(request, response);
+                if (jwtTokenProvider.validateToken(token)) {
+                    String uuidString = jwtTokenProvider.getPayload(token);
+                    String role = jwtTokenProvider.getRole(token);
+
+                    if (role == null) {
+                        role = "ROLE_USER";
+                    }
+
+                    UUID uuid;
+                    try {
+                        uuid = UUID.fromString(uuidString);
+                    } catch (IllegalArgumentException e) {
+                        log.error("Invalid UUID in Token: {}", uuidString);
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            uuid,
+                            null,
+                            Collections.singleton(new SimpleGrantedAuthority(role))
+                    );
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    log.debug("Security Context Save - UUID: {}, Role: {}", uuid, role);
+                } else {
+                    // validateToken이 false 반환 → 만료 or 잘못된 토큰
+                    // SecurityContext를 비워두면 EntryPoint가 401로 처리하게 됨
+                    log.warn("[JwtFilter] 유효하지 않은 토큰 - 인증 없이 진행 (EntryPoint에서 401 처리 예정)");
+                    SecurityContextHolder.clearContext();
+                }
+            } catch (JwtException e) {
+                log.warn("[JwtFilter] 유효하지 않은 JWT 토큰 - 401 응답: {}", e.getMessage());
+                sendUnauthorizedResponse(response, "유효하지 않은 토큰입니다.");
+                return;
+            } catch (Exception e) {
+                log.warn("[JwtFilter] 토큰 처리 오류 - 401 응답: {}", e.getMessage());
+                sendUnauthorizedResponse(response, "토큰 처리 중 오류가 발생했습니다.");
                 return;
             }
-
-            //매 요청마다 DB를 조회하여 사용자 객체를 찾지않고, JWT의 정보를 통해 인증 객체 생성
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    uuid, // Principal: UUID 객체를 삽입
-                    null,
-                    Collections.singleton(new SimpleGrantedAuthority(role)) // 실제 권한 부여
-            );
-
-            //SecurityContext에 저장 -> 현재 사용자는 인증받은 사용자임을 공시
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.debug("Security Context Save - UUID: {}, Role: {}", uuid, role);
         }
 
-        //비로그인 상태로 컨트롤러 접근(일부 기능만)
         filterChain.doFilter(request, response);
     }
 
-    // 헤더에서 Bearer 토큰 꺼내기
+    private void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        objectMapper.writeValue(response.getWriter(), Map.of(
+                "code", "INVALID_TOKEN",
+                "message", message
+        ));
+    }
+
     private String resolveToken(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {

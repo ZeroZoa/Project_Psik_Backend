@@ -120,11 +120,17 @@ public record OAuthAttributes(
         return Member.builder()
                 .provider(provider)
                 .oauthId(oauthId)
-                .nickname(nickname)
+                .nickname(generateTempNickname())
                 .email(email)
                 .profileImageUrl(profileImageUrl)
                 .phoneNumber(phoneNumber)
                 .role(Role.USER) // 가입 시 기본 권한 USER
                 .build();
+    }
+
+    //닉네임 중복을 막기위해
+    private String generateTempNickname() {
+        String uid = java.util.UUID.randomUUID().toString().replace("-", "");
+        return "user_" + uid.substring(0, 6);
     }
 }

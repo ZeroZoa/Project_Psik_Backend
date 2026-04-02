@@ -98,4 +98,16 @@ public class SkinDiaryController {
 
         return ResponseEntity.noContent().build();
     }
+
+    // 기간별 조회 (최근 30일 그래프용)
+    @Operation(summary = "기간별 다이어리 조회", description = "from~to 사이의 다이어리 목록을 조회합니다.")
+    @GetMapping("/range")
+    public ResponseEntity<List<SkinDiaryResponse>> getDiariesByRange(
+            @Parameter(hidden = true) @AuthenticationPrincipal Object principal,
+            @RequestParam("from") Instant from,
+            @RequestParam("to") Instant to
+    ) {
+        UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        return ResponseEntity.ok(skinDiaryService.getDiariesByRange(memberUuid, from, to));
+    }
 }

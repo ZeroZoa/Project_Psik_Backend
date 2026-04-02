@@ -48,7 +48,8 @@ public class CommentController {
             @Parameter(hidden = true) @AuthenticationPrincipal Object principal,
             @PathVariable Long postId
     ) {
-        UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        // 비로그인 사용자도 댓글 목록 조회 가능
+        UUID memberUuid = (principal instanceof UUID) ? (UUID) principal : null;
         return ResponseEntity.ok(commentService.getComments(postId, memberUuid));
     }
 
@@ -86,17 +87,5 @@ public class CommentController {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
         boolean liked = commentService.toggleLike(memberUuid, commentId);
         return ResponseEntity.ok(Map.of("liked", liked));
-    }
-
-    // ===================== 마이페이지  =====================
-
-    @Operation(summary = "내가 작성한 댓글 목록 (최신순)")
-    @GetMapping("/api/comments/me")
-    public ResponseEntity<Page<CommentResponse>> getMyComments(
-            @Parameter(hidden = true) @AuthenticationPrincipal Object principal,
-            @PageableDefault(size = 20) Pageable pageable
-    ) {
-        UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
-        return ResponseEntity.ok(commentService.getMyComments(memberUuid, pageable));
     }
 }

@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.util.List;
 import java.util.UUID;
 
 //회원 엔티티
@@ -26,13 +27,15 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Member extends BaseTimeEntity {
 
+    //------------- 회원 -------------
+
     //내부 식별자
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Long id;
 
-    //외부 식별자:API 노출용UUID v7
+    //외부 식별자 - API 노출용UUID(v7)
     @Column(name = "uuid", columnDefinition = "uuid", nullable = false, unique = true, updatable = false)
     @JdbcTypeCode(SqlTypes.UUID)
     private UUID uuid;
@@ -42,19 +45,40 @@ public class Member extends BaseTimeEntity {
     @Column(name = "provider", length = 20, nullable = false)
     private Provider provider;
 
+    //소셜 로그인 아이디
     @Column(name = "oauth_id", length = 100, nullable = false)
     private String oauthId;
 
-    //회원 정보
+    //역할(USER, ADMIN)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", length = 20, nullable = false)
+    private Role role;
+
+    //------------- 회원 프로필 -------------
+
     @Column(name = "nickname", length = 30, nullable = false)
     private String nickname;
+
+    @Enumerated(EnumType.STRING)
+    private Gender gender;
+
+    private Integer birthYear;
+
+    @Enumerated(EnumType.STRING)
+    private SkinType skinType;
 
     @Column(name = "profile_image_url", length = 512)
     private String profileImageUrl;
 
+    // 피부 고민 복수 선택
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "member_skin_concerns")
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", length = 20, nullable = false)
-    private Role role;
+    private List<SkinConcern> skinConcerns;
+
+    // 프로필 설정 완료 여부
+    @Column(name = "profile_complete", nullable = false)
+    private boolean profileComplete = false;
 
     //아래는 OIDC를 인증 후 제공 동의를 통해 받아올 정보들 동의 여부, 정책에 따라 못받을 가능성이 있음 -> Nullable 필수
     @Column(name = "email", length = 100)
@@ -62,6 +86,8 @@ public class Member extends BaseTimeEntity {
 
     @Column(name = "phone_number", length = 20)
     private String phoneNumber;
+
+    //------------- 빌더 및 매서드 -------------
 
     @Builder
     public Member(Provider provider, String oauthId, String nickname, String profileImageUrl, String email, String phoneNumber, Role role) {
@@ -93,6 +119,11 @@ public class Member extends BaseTimeEntity {
         }
     }
 
+    //피부 고민 수정
+    public void updateSkinConcerns(List<SkinConcern> skinConcerns) {
+        this.skinConcerns = skinConcerns;
+    }
+
     //프로필 정보 수정 -> 닉네임, 프로필 사진
     public void updateProfile(String nickname, String profileImageUrl) {
         if (nickname != null && !nickname.isBlank()) {
@@ -101,5 +132,14 @@ public class Member extends BaseTimeEntity {
         if (profileImageUrl != null && !profileImageUrl.isBlank()) {
             this.profileImageUrl = profileImageUrl;
         }
+    }
+
+    public void setupProfile(String nickname, Gender gender, Integer birthYear, SkinType skinType, List<SkinConcern> skinConcerns) {
+        this.nickname = nickname;
+        this.gender = gender;
+        this.birthYear = birthYear;
+        this.skinType = skinType;
+        this.skinConcerns = skinConcerns;
+        this.profileComplete = true;
     }
 }

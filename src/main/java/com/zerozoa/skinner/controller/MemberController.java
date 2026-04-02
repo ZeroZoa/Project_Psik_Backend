@@ -1,11 +1,16 @@
 package com.zerozoa.skinner.controller;
 
+import com.zerozoa.skinner.domain.member.Member;
 import com.zerozoa.skinner.dto.member.MemberResponse;
+import com.zerozoa.skinner.dto.member.NicknameRequest;
+import com.zerozoa.skinner.dto.member.ProfileSetupRequest;
+import com.zerozoa.skinner.dto.member.SkinConcernUpdateRequest;
 import com.zerozoa.skinner.global.util.SecurityUtils;
 import com.zerozoa.skinner.service.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +54,49 @@ public class MemberController {
     public ResponseEntity<Boolean> checkNickname(@RequestParam String nickname) {
         boolean isDuplicate = memberService.isNicknameDuplicate(nickname);
         return ResponseEntity.ok(isDuplicate);
+    }
+
+    /**
+     * 닉네임 수정
+     */
+    @Operation(summary = "닉네임 수정", description = "현재 로그인된 사용자의 닉네임을 변경합니다.")
+    @PatchMapping("/me/nickname")
+    public ResponseEntity<MemberResponse> updateNickname(
+            @Parameter(hidden = true) @AuthenticationPrincipal Object principal,
+            @RequestBody @Valid NicknameRequest request
+    ) {
+        UUID uuid = SecurityUtils.extractMemberUuid(principal);
+        Member member = memberService.updateNickname(uuid, request.nickname());
+        return ResponseEntity.ok(MemberResponse.from(member));
+    }
+
+    /**
+     * 피부 고민 수정
+     */
+    @Operation(summary = "피부 고민 수정", description = "현재 로그인된 사용자의 피부 고민을 수정합니다. (1~3개)")
+    @PatchMapping("/me/skin-concerns")
+    public ResponseEntity<MemberResponse> updateSkinConcerns(
+            @Parameter(hidden = true) @AuthenticationPrincipal Object principal,
+            @RequestBody @Valid SkinConcernUpdateRequest request
+    ) {
+        UUID uuid = SecurityUtils.extractMemberUuid(principal);
+        Member member = memberService.updateSkinConcerns(uuid, request);
+        return ResponseEntity.ok(MemberResponse.from(member));
+    }
+
+    /**
+     * 최초 프로필 설정 (신규 회원 전용)
+     */
+    @Operation(summary = "프로필 초기 설정", description = "소셜 로그인 후 최초 1회 프로필을 설정합니다. 이미 설정된 경우 409를 반환합니다.")
+    @PostMapping("/me/profile-setup")
+    public ResponseEntity<MemberResponse> setupProfile(
+            @Parameter(hidden = true) @AuthenticationPrincipal Object principal,
+            @RequestBody @Valid ProfileSetupRequest request
+    ) {
+        UUID uuid = SecurityUtils.extractMemberUuid(principal);
+        log.info("[API] 프로필 초기 설정 요청 - UUID: {}", uuid);
+        Member member = memberService.setupProfile(uuid, request);
+        return ResponseEntity.ok(MemberResponse.from(member));
     }
 
     /**

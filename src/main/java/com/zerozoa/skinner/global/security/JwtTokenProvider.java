@@ -73,7 +73,7 @@ public class JwtTokenProvider {
         }
     }
 
-    // 4. 토큰 유효성 검사
+    //토큰 유효성 검사
     public boolean validateToken(String token) {
         try {
             Jwts.parser()
@@ -81,16 +81,19 @@ public class JwtTokenProvider {
                     .build()
                     .parseSignedClaims(token);
             return true;
-        } catch (SecurityException | MalformedJwtException e) {
-            log.warn("잘못된 JWT 서명입니다.");
         } catch (ExpiredJwtException e) {
             log.warn("만료된 JWT 토큰입니다.");
+            throw e; // Filter에서 잡아 401 반환
+        } catch (SecurityException | MalformedJwtException e) {
+            log.warn("잘못된 JWT 서명입니다.");
+            throw new JwtException("잘못된 JWT 서명", e);
         } catch (UnsupportedJwtException e) {
             log.warn("지원되지 않는 JWT 토큰입니다.");
+            throw new JwtException("지원되지 않는 JWT", e);
         } catch (IllegalArgumentException e) {
             log.warn("JWT 토큰이 잘못되었습니다.");
+            throw new JwtException("JWT 토큰이 잘못됨", e);
         }
-        return false;
     }
 
     public String getRole(String token) {

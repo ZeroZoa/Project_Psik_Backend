@@ -79,7 +79,9 @@ public class CommentService {
      */
     public List<CommentResponse> getComments(Long postId, UUID memberUuid) {
         Post post = findPostById(postId);
-        Member member = findMemberByUuid(memberUuid);
+
+        // 비로그인이면 likedByMe 전부 false
+        Member member = (memberUuid != null) ? findMemberByUuid(memberUuid) : null;
 
         //루트 댓글 조회
         List<Comment> rootComments = commentRepository.findRootCommentsByPost(post);
@@ -87,14 +89,14 @@ public class CommentService {
         //각 루트 댓글에 대해 대댓글 조회 + likedByMe 계산
         return rootComments.stream()
                 .map(root -> {
-                    boolean rootLikedByMe = commentLikeRepository
-                            .existsByCommentAndMember(root, member);
+                    boolean rootLikedByMe = (member != null)
+                            && commentLikeRepository.existsByCommentAndMember(root, member);
 
                     List<CommentResponse> children = commentRepository
                             .findChildComments(root).stream()
                             .map(child -> {
-                                boolean childLikedByMe = commentLikeRepository
-                                        .existsByCommentAndMember(child, member);
+                                boolean childLikedByMe = (member != null)
+                                        && commentLikeRepository.existsByCommentAndMember(child, member);
                                 return CommentResponse.from(child, childLikedByMe);
                             })
                             .toList();

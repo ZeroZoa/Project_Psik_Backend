@@ -1,8 +1,10 @@
 package com.zerozoa.skinner.controller;
 
 import com.zerozoa.skinner.domain.contents.IngredientType;
+import com.zerozoa.skinner.domain.member.SkinConcern;
 import com.zerozoa.skinner.dto.contents.IngredientDetailResponse;
 import com.zerozoa.skinner.dto.contents.IngredientResponse;
+import com.zerozoa.skinner.dto.contents.RecommendedGroupResponse;
 import com.zerozoa.skinner.service.IngredientService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,6 +17,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 //Ingredient 및 관련 제품 정보를 제공하는 API 컨트롤러
 @Slf4j
@@ -60,5 +66,27 @@ public class IngredientController {
 
         // 서비스에서 예외(INGREDIENT_NOT_FOUND) 처리가 되어 있으므로 바로 호출
         return ResponseEntity.ok(ingredientService.getIngredientDetail(id));
+    }
+
+    /**
+     * SkinConcern에 해당하는 Ingredient 추천
+     * @param skinConcerns
+     */
+    @Operation(summary = "피부 고민별 성분 추천")
+    @GetMapping("/recommended")
+    public ResponseEntity<List<RecommendedGroupResponse>> getRecommended(
+            @RequestParam List<SkinConcern> skinConcerns
+    ) {
+        log.info("[API] Get Recommended Ingredients - skinConcerns: {}", skinConcerns);
+
+        List<RecommendedGroupResponse> result = skinConcerns.stream()
+                .map(concern -> new RecommendedGroupResponse(
+                        concern.name(),
+                        concern.getDescription(),
+                        ingredientService.getRecommendedIngredients(List.of(concern))
+                ))
+                .toList();
+
+        return ResponseEntity.ok(result);
     }
 }

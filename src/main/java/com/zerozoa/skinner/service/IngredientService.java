@@ -2,6 +2,7 @@ package com.zerozoa.skinner.service;
 
 import com.zerozoa.skinner.domain.contents.Ingredient;
 import com.zerozoa.skinner.domain.contents.IngredientType;
+import com.zerozoa.skinner.domain.member.SkinConcern;
 import com.zerozoa.skinner.dto.contents.IngredientDetailResponse;
 import com.zerozoa.skinner.dto.contents.IngredientResponse;
 import com.zerozoa.skinner.global.exception.BusinessException;
@@ -12,6 +13,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 //Ingredient 관련 비지니스 로직을 담당하는 서비스
 @Service
@@ -50,5 +53,17 @@ public class IngredientService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.INGREDIENT_NOT_FOUND));
 
         return IngredientDetailResponse.from(ingredient);
+    }
+
+    /**
+     * 사용자별 SkinConcern 상세 조회
+     * @param concerns
+     * @return SkinConcern에 해당하는 Ingredient추천
+     */
+    public List<IngredientResponse> getRecommendedIngredients(List<SkinConcern> concerns) {
+        return ingredientRepository.findBySkinConcernsIn(concerns)
+                .stream()
+                .map(IngredientResponse::from)
+                .toList();
     }
 }

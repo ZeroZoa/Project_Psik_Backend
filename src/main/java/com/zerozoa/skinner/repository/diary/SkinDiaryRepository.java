@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface SkinDiaryRepository extends JpaRepository<SkinDiary, Long> {
@@ -28,4 +29,6 @@ public interface SkinDiaryRepository extends JpaRepository<SkinDiary, Long> {
             @Param("member") Member member,
             @Param("start") Instant start,
             @Param("end") Instant end);
+
+    List<SkinDiary> findAllByMember_UuidAndRecordDateBetween(UUID memberUuid, Instant from, Instant to);
 }

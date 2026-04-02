@@ -79,8 +79,12 @@ public class PostService {
         Post post = findPostById(postId);
         post.increaseViewCount();
 
-        Member member = findMemberByUuid(memberUuid);
-        boolean likedByMe = postLikeRepository.existsByPostAndMember(post, member);
+        // 비로그인 사용자는 likedByMe = false
+        boolean likedByMe = false;
+        if (memberUuid != null) {
+            Member member = findMemberByUuid(memberUuid);
+            likedByMe = postLikeRepository.existsByPostAndMember(post, member);
+        }
 
         return PostResponse.fromDetail(post, likedByMe);
     }

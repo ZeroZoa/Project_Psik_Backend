@@ -29,13 +29,17 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private final AuthService authService;
 
-    // [수정] 환경변수로 분리 — 프로필(local/prod)별로 다르게 설정 가능
+    //환경변수로 분리 — 프로필(local/prod)별로 다르게 설정 가능
     @Value("${app.oauth2.success-redirect-uri:http://localhost:3000/home}")
     private String webRedirectUri;
 
-    // [수정] 배포(https) 시 true로 자동 전환되도록 환경변수 사용
+    //배포(https) 시 true로 자동 전환되도록 환경변수 사용
     @Value("${app.cookie.secure:false}")
     private boolean cookieSecure;
+
+    //프로필 세팅을 위한 url
+    @Value("${app.oauth2.profile-setup-redirect-uri:http://localhost:3000/profile-setup}")
+    private String webProfileSetupUri;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
@@ -59,8 +63,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // Access Token -> 일반 Cookie (프론트가 읽기용, 5분)
         addCookie(response, "accessToken", tokenResponse.accessToken(), 5 * 60, false);
 
-        log.info("[OAuth2] Web Login Success. Redirecting to: {}", webRedirectUri);
-        getRedirectStrategy().sendRedirect(request, response, webRedirectUri);
+        String redirectUri = member.isProfileComplete() ? webRedirectUri : webProfileSetupUri;
+        log.info("[OAuth2] Web Login Success. Redirecting to: {}", redirectUri);
+        getRedirectStrategy().sendRedirect(request, response, redirectUri);
     }
 
     private void addCookie(HttpServletResponse response, String name, String value, int maxAge, boolean httpOnly) {
