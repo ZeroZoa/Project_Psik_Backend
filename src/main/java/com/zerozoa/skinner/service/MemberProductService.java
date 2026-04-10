@@ -25,7 +25,15 @@ public class MemberProductService {
     private final MemberRepository memberRepository;
     private final ProductRepository productRepository;
 
-    /** 샀어요 등록 (중복 불가, 취소 없음) */
+    /**
+     * 샀어요 등록 (중복 불가, 취소 없음)
+     * @param memberUuid 샀어요를 등록할 회원의 UUID
+     * @param productId 샀어요 등록할 제품의 ID
+     * @throws BusinessException 이미 샀어요를 등록한 경우 {@link ErrorCode#ALREADY_OWNED_PRODUCT}
+     * @throws BusinessException 회원을 찾을 수 없는 경우 {@link ErrorCode#MEMBER_NOT_FOUND}
+     * @throws BusinessException 제품을 찾을 수 없는 경우 {@link ErrorCode#PRODUCT_NOT_FOUND}
+     * @return 해당 제품의 샀어요 총 수
+     */
     @Transactional
     public long markAsOwned(UUID memberUuid, Long productId) {
         if (memberProductRepository.existsByMember_UuidAndProduct_Id(memberUuid, productId)) {
@@ -46,20 +54,34 @@ public class MemberProductService {
         return product.getOwnedCount();
     }
 
-    @Transactional
-    public List<ProductDto> getOwnedProducts(UUID memberUuid) {
-        return memberProductRepository.findAllByMemberUuidWithProduct(memberUuid)
+    /**
+     * 회원이 샀어요 등록한 제품 목록 조회
+     * @param uuid 조회할 회원의 UUID
+     * @return 해당 회원이 샀어요 등록한 제품 목록
+     */
+    public List<ProductDto> getOwnedProducts(UUID uuid) {
+        return memberProductRepository.findAllByMemberUuidWithProduct(uuid)
                 .stream()
                 .map(mp -> ProductDto.from(mp.getProduct()))
                 .toList();
     }
 
-    /** 특정 제품 샀어요 여부 확인 */
-    public boolean isOwned(UUID memberUuid, Long productId) {
-        return memberProductRepository.existsByMember_UuidAndProduct_Id(memberUuid, productId);
+    /**
+     * 특정 제품의 샀어요 등록 여부 확인
+     * @param uuid 확인할 회원의 UUID
+     * @param productId 확인할 제품의 ID
+     * @return 샀어요 등록 시 {@code true}, 미등록 시 {@code false}
+     */
+    public boolean isOwned(UUID uuid, Long productId) {
+        return memberProductRepository.existsByMember_UuidAndProduct_Id(uuid, productId);
     }
 
-    /** 특정 제품 샀어요 수 */
+
+    /**
+     * 특정 제품의 샀어요 총 수 조회
+     * @param productId 조회할 제품의 ID
+     * @return 해당 제품의 샀어요 총 수
+     */
     public long countByProduct(Long productId) {
         return memberProductRepository.countByProduct_Id(productId);
     }

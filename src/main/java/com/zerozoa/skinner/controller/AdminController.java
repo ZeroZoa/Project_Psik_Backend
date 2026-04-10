@@ -13,6 +13,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -80,8 +83,10 @@ public class AdminController {
 
     @Operation(summary = "전체 제품 목록 조회 (성분 연결용)")
     @GetMapping("/products")
-    public ResponseEntity<List<ProductDto>> getAllProducts() {
-        return ResponseEntity.ok(adminService.getAllProducts());
+    public ResponseEntity<Page<ProductDto>> getAllProducts(
+            @PageableDefault(size = 20, sort = "id") Pageable pageable
+    ) {
+        return ResponseEntity.ok(adminService.getAllProducts(pageable));
     }
 
     @Operation(summary = "제품 생성")

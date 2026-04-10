@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-//인증/인가(Auth) 비지니스 로직을 담당하는 서비스
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -24,11 +23,18 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final MemberRepository memberRepository;
 
+
     /**
-     * 로그인 성공 시 최초 토큰 발급
+     * 최초 토큰 발급 - 로그인
+     * @param memberUuid 로그인한 Member의 UUID
+     * @param role 로그인한 Member의 role - (ADMIN, USER)
+     * @param ip 로그인한 Member의 현재 ip
+     * @param userAgent 로그인한 Member의 현재 기기
+     * @return TokenResponse
      */
     @Transactional
     public TokenResponse createToken(UUID memberUuid, String role, String ip, String userAgent) {
+        //토큰 생성
         String accessToken = jwtTokenProvider.createAccessToken(memberUuid, role);
         String refreshToken = jwtTokenProvider.createRefreshToken(memberUuid);
 
@@ -38,20 +44,26 @@ public class AuthService {
     }
 
     /**
-     * 토큰 재발급 (Refresh Token Rotation)
+     * 토큰 재발급
+     * @param refreshToken 토큰 재발급 요청한 Member의 refreshToken
+     * @param ip 토큰 재발급 요청한 Member의 현재 ip
+     * @param userAgent 토큰 재발급 요청한 Member의 현재 기기
+     * @throws BusinessException Refresh Token이 유효하지 않는 경우 {@link ErrorCode#INVALID_TOKEN} 예외 발생
+     * @throws BusinessException Refresh Token이 없는 경우 {@link ErrorCode#INVALID_TOKEN} 예외 발생
+     * @throws BusinessException Refresh Token의 소유자와 현재 사용자의 UUID가 일치하지 않는 경우 {@link ErrorCode#INVALID_TOKEN} 예외 발생
+     * @throws BusinessException Member가 존재하지 않는 경우 {@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
+     * @return TokenResponse
      */
     @Transactional
     public TokenResponse reissue(String refreshToken, String ip, String userAgent) {
-        //Refresh Token 유효성 검사
+
         if (!jwtTokenProvider.validateToken(refreshToken)) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN, "유효하지 않은 Refresh Token입니다.");
         }
 
-        //DB에서 Refresh Token 값으로 조회
         RefreshToken storedToken = refreshTokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_TOKEN, "로그아웃 된 사용자이거나 유효하지 않은 토큰입니다."));
 
-        //토큰 내 UUID 추출 및 검증
         String uuidString = jwtTokenProvider.getPayload(refreshToken);
         UUID memberUuid = UUID.fromString(uuidString);
 
@@ -59,7 +71,6 @@ public class AuthService {
             throw new BusinessException(ErrorCode.INVALID_TOKEN, "토큰 소유자가 일치하지 않습니다.");
         }
 
-        //회원 존재 여부 확인
         Member member = memberRepository.findByUuid(memberUuid)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -74,7 +85,8 @@ public class AuthService {
     }
 
     /**
-     * 로그아웃 처리
+     * 리프레쉬 토큰 삭제 - 로그아웃
+     * @param refreshToken 토큰 삭제 요청한 Member의 refreshToken
      */
     @Transactional
     public void logout(String refreshToken) {
