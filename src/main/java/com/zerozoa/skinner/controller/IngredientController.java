@@ -18,11 +18,9 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
-//Ingredient 및 관련 제품 정보를 제공하는 API 컨트롤러
+//Ingredient 관련 API 컨트롤러
 @Slf4j
 @Tag(name = "Ingredient API", description = "성분/제품 정보 조회 API")
 @RestController
@@ -33,18 +31,19 @@ public class IngredientController {
     private final IngredientService ingredientService;
 
     /**
-     * 성분 목록을 조회합니다. (검색 및 필터링 지원)
-     * @param keyword  검색어 (성분명, 설명 등에 포함된 단어)
-     * @param type     성분 타입 필터 (GENERAL, OTC, PRESCRIPTION, OVERSEAS)
+     * 성분 목록 조회
+     * @param keyword 검색어
+     * @param type 성분 타입 필터
      * @param pageable 페이징 정보 (기본값: size=10, sort=id,desc)
-     * @return 검색된 성분 목록 (Page 객체)
+     * @return 200 OK - 검색된 성분 목록 (Page)
+     * @see IngredientService#getIngredients(String, IngredientType, Pageable)
      */
-    @Operation(summary = "성분 목록 조회 (검색/필터)", description = "성분 리스트를 조회합니다. 검색어(keyword)나 타입(type)으로 필터링 가능합니다.")
+    @Operation(summary = "성분 목록 조회", description = "성분 리스트를 조회")
     @GetMapping
     public ResponseEntity<Page<IngredientResponse>> getIngredients(
             @Parameter(description = "검색어 (이름, 설명 포함)") @RequestParam(required = false) String keyword,
             @Parameter(description = "성분 타입 필터 (GENERAL, OTC, PRESCRIPTION, OVERSEAS)") @RequestParam(required = false) IngredientType type,
-            @Parameter(description = "페이징 설정 (기본: 10개, ID 역순)") @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
+            @Parameter(description = "페이징 설정 (기본: 10개, ID 역순)") @PageableDefault(sort = "id", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         log.info("[API] Get Ingredients - keyword: {}, type: {}, page: {}", keyword, type, pageable.getPageNumber());
 
@@ -53,9 +52,10 @@ public class IngredientController {
     }
 
     /**
-     * 특정 성분의 상세 정보를 조회합니다.
-     * @param id 조회할 성분의 PK (ID)
-     * @return 성분 상세 정보 DTO (없으면 404 Not Found)
+     * 특정 성분의 상세 정보를 조회
+     * @param id 조회할 성분의 id
+     * @return 200 OK
+     * @see IngredientService#getIngredientDetail(Long)
      */
     @Operation(summary = "성분 상세 조회", description = "성분의 상세 정보(효과, 주의사항, 추천 제품 등)를 조회합니다.")
     @GetMapping("/{id}")
@@ -64,13 +64,14 @@ public class IngredientController {
     ) {
         log.info("[API] Get Ingredient Detail - id: {}", id);
 
-        // 서비스에서 예외(INGREDIENT_NOT_FOUND) 처리가 되어 있으므로 바로 호출
         return ResponseEntity.ok(ingredientService.getIngredientDetail(id));
     }
 
     /**
-     * SkinConcern에 해당하는 Ingredient 추천
-     * @param skinConcerns
+     * 피부고민에 해당하는 성분 추천
+     * @param skinConcerns 성분을 추천받기위한 피부고민
+     * @return 200 OK
+     * @see IngredientService#getRecommendedIngredients(List)
      */
     @Operation(summary = "피부 고민별 성분 추천")
     @GetMapping("/recommended")

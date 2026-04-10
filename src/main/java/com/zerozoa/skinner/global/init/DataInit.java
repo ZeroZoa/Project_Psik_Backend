@@ -46,6 +46,7 @@ public class DataInit implements CommandLineRunner {
                 .brand("이니스프리")
                 .price(25000L)
                 .imageUrl("https://cloudinary.images-iherb.com/image/upload/f_auto,q_auto:eco/images/syi/syi02261/g/61.jpg")
+
                 .description("레티놀과 시카 성분이 함유된 세럼")
                 .build());
 
@@ -53,6 +54,7 @@ public class DataInit implements CommandLineRunner {
                 .name("디오디너리 나이아신아마이드 10%")
                 .brand("디오디너리")
                 .price(25000L)
+                .link("https://kr.iherb.com/pr/advanced-clinicals-5-niacinamide-serum-1-75-fl-oz-52-ml/110665")
                 .imageUrl("https://cloudinary.images-iherb.com/image/upload/f_auto,q_auto:eco/images/ptt/ptt85040/g/69.jpg")
                 .description("나이아신아마이드와 시카 성분이 함유된 세럼")
                 .build());
@@ -62,6 +64,7 @@ public class DataInit implements CommandLineRunner {
                 .brand("Gurene")
                 .price(20000L)
                 .imageUrl("https://cloudinary.images-iherb.com/image/upload/f_auto,q_auto:eco/images/auu/auu73719/g/17.jpg")
+                .link("https://www.coupang.com/vp/products/9349780637?itemId=27736546563&vendorItemId=94790326802&sourceType=srp_product_ads&clickEventId=21a86bf0-30ac-11f1-b66c-18260eb832cb&korePlacement=15&koreSubPlacement=1&clickEventId=21a86bf0-30ac-11f1-b66c-18260eb832cb&korePlacement=15&koreSubPlacement=1&traceId=mnlak611")
                 .description("아젤리아 크림")
                 .build());
 

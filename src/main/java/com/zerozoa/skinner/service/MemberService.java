@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-//Member 비지니스 로직을 담당하는 서비스
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -52,14 +51,14 @@ public class MemberService {
 
     /**
      * 회원 정보를 조회
-     * @param uuid 조회할 회원의 UUID (API 토큰에서 추출한 값)
+     * @param memberUuid 조회할 회원의 UUID (API 토큰에서 추출한 값)
      * @return 조회된 {@link Member} 엔티티
      * @throws BusinessException 회원을 찾을 수 없는 경우 {@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
      */
-    public Member getByUuid(UUID uuid) {
-        return memberRepository.findByUuid(uuid)
+    public Member getByUuid(UUID memberUuid) {
+        return memberRepository.findByUuid(memberUuid)
                 .orElseThrow(() -> {
-                    log.warn("[Service] Member not found. uuid={}", uuid);
+                    log.warn("[Service] Member not found. uuid={}", memberUuid);
                     return new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
                 });
     }
@@ -75,13 +74,14 @@ public class MemberService {
 
     /**
      * 닉네임 수정
-     * @param uuid@param nickname 조회할 회원의 UUID (API 토큰에서 추출한 값)
+     * @param memberUuid 조회할 회원의 UUID (API 토큰에서 추출한 값)
+     * @param nickname 변경할 닉네임
      * @return {@link Member} 엔티티
      * @throws BusinessException 닉네임이 중복인 경우 {@link ErrorCode#NICKNAME_ALREADY_EXISTS} 예외 발생
      */
     @Transactional
-    public Member updateNickname(UUID uuid, String nickname) {
-        Member member = getByUuid(uuid);
+    public Member updateNickname(UUID memberUuid, String nickname) {
+        Member member = getByUuid(memberUuid);
 
         // 현재 닉네임과 같으면 그냥 반환
         if (nickname.equals(member.getNickname())) {
@@ -99,28 +99,28 @@ public class MemberService {
 
     /**
      * 피부고민 수정
-     * @param uuid 설정할 회원의 UUID
+     * @param memberUuid 피부고민을 수정할 회원의 UUID
      * @param request 피부고민 설정 요청 DTO
      * @return {@link Member} 엔티티
      */
     @Transactional
-    public Member updateSkinConcerns(UUID uuid, SkinConcernUpdateRequest request) {
-        Member member = getByUuid(uuid);
+    public Member updateSkinConcerns(UUID memberUuid, SkinConcernUpdateRequest request) {
+        Member member = getByUuid(memberUuid);
         member.updateSkinConcerns(request.skinConcerns());
         return memberRepository.save(member);
     }
 
     /**
      * 최초 프로필 설정 (소셜 로그인 신규 회원 전용)
-     * @param uuid 설정할 회원의 UUID
+     * @param memberUuid 설정할 회원의 UUID
      * @param request 프로필 설정 요청 DTO
      * @return 설정 완료된 {@link Member}
-     * @throws BusinessException profileComplete 가 이미 true 인 경우
-     * @throws BusinessException 닉네임 중복인 경우
+     * @throws BusinessException profileComplete 가 이미 true 인 경우 {@link ErrorCode#PROFILE_ALREADY_COMPLETE}
+     * @throws BusinessException 닉네임 중복인 경우 {@link ErrorCode#NICKNAME_ALREADY_EXISTS}
      */
     @Transactional
-    public Member setupProfile(UUID uuid, ProfileSetupRequest request) {
-        Member member = getByUuid(uuid);
+    public Member setupProfile(UUID memberUuid, ProfileSetupRequest request) {
+        Member member = getByUuid(memberUuid);
 
         // 이미 프로필 설정 완료된 회원은 재설정 불가
         if (member.isProfileComplete()) {
@@ -141,26 +141,26 @@ public class MemberService {
                 request.skinConcerns()
         );
 
-        log.info("[Profile] Setup Complete: uuid={}, nickname={}", uuid, request.nickname());
+        log.info("[Profile] Setup Complete: uuid={}, nickname={}", memberUuid, request.nickname());
         return member;
     }
 
     /**
      * 회원 탈퇴
-     * @param uuid 탈퇴할 회원의 UUID
-     * @throws BusinessException 회원이 존재하지 않을 경우 예외 발생
+     * @param memberUuid 탈퇴할 회원의 UUID
+     * @throws BusinessException 회원이 존재하지 않을 경우 {@link ErrorCode#MEMBER_NOT_FOUND}
      */
     @Transactional
-    public void deleteMember(UUID uuid) {
+    public void deleteMember(UUID memberUuid) {
         //회원 존재 확인
-        Member member = getByUuid(uuid);
+        Member member = getByUuid(memberUuid);
 
         //연관된 토큰 일괄 삭제
-        refreshTokenRepository.deleteAllByMemberUuid(uuid);
+        refreshTokenRepository.deleteAllByMemberUuid(memberUuid);
 
         //회원 데이터 삭제 (Hard Delete)
         memberRepository.delete(member);
 
-        log.info("[Withdraw] Member Deleted: uuid={}", uuid);
+        log.info("[Withdraw] Member Deleted: uuid={}", memberUuid);
     }
 }

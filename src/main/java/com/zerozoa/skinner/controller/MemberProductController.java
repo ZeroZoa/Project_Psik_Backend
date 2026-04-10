@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+//Member가 구매한 MemberProduct 관련 API 컨트롤러
 @Tag(name = "MemberProduct API", description = "샀어요 API")
 @RestController
 @RequiredArgsConstructor

@@ -1,6 +1,5 @@
 package com.zerozoa.skinner.service;
 
-
 import com.zerozoa.skinner.domain.community.Comment;
 import com.zerozoa.skinner.domain.community.CommentLike;
 import com.zerozoa.skinner.domain.community.Post;
@@ -23,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
-//댓글 비지니스 로직을 담당하는 서비스
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -37,7 +35,12 @@ public class CommentService {
 
     /**
      * 댓글 작성 (루트 댓글 또는 대댓글)
-     * 대댓글은 1단계만 허용 (대댓글의 대댓글 금지)
+     * @param memberUuid 댓글을 작성한 Member의 UUID
+     * @param postId 댓글이 작성될 Post의 ID
+     * @param request 댓글 작성 요청 DTO
+     * @throws BusinessException Comment의 depth가 대댓글 보다 클 경우{@link ErrorCode#COMMENT_DEPTH_EXCEEDED} 예외 발생
+     * @throws BusinessException 대댓글의 댓글이 Post에 속하지않는 경우 {@link ErrorCode#INVALID_INPUT_VALUE} 예외 발생
+     * @return CommentResponse
      */
     @Transactional
     public CommentResponse createComment(UUID memberUuid, Long postId, CommentRequest request) {
@@ -76,6 +79,9 @@ public class CommentService {
 
     /**
      * 게시글의 댓글 목록 조회 (루트 댓글 + 대댓글 트리 구조)
+     * @param postId 조회할 댓글이 포함되어있는 Post의 ID
+     * @param memberUuid 현재 사용자의 좋아요 유무를 확인하기 위한 Member의 UUID
+     * @return CommentResponse List
      */
     public List<CommentResponse> getComments(Long postId, UUID memberUuid) {
         Post post = findPostById(postId);
@@ -108,6 +114,11 @@ public class CommentService {
 
     /**
      * 댓글 수정
+     * @param memberUuid 댓글을 수정을 요청한 Member의 UUID
+     * @param commentId 수정할 댓글의 Id
+     * @param request 댓글 수정 요청 DTO
+     * @throws BusinessException 댓글의 소유주가 아닌 경우{@link ErrorCode#ACCESS_DENIED} 예외 발생
+     * @return CommentResponse
      */
     @Transactional
     public CommentResponse updateComment(UUID memberUuid, Long commentId, CommentRequest request) {
@@ -126,8 +137,10 @@ public class CommentService {
     }
 
     /**
-     * 댓글 삭제
-     * 루트 댓글 삭제 시 대댓글도 함께 삭제됨 (CascadeType.ALL)
+     * 댓글 삭제 - 루트 댓글 삭제 시 대댓글도 함께 삭제됨 (CascadeType.ALL)
+     * @param memberUuid 댓글을 삭제를 요청한 Member의 UUID
+     * @param commentId 삭제할 댓글의 Id
+     * @throws BusinessException 댓글의 소유주가 아닌 경우{@link ErrorCode#ACCESS_DENIED} 예외 발생
      */
     @Transactional
     public void deleteComment(UUID memberUuid, Long commentId) {
@@ -156,11 +169,14 @@ public class CommentService {
         }
     }
 
-    // ===================== 마이페이지 =====================
+    // ───────────────────── 마이페이지 ─────────────────────
+
 
     /**
      * 내가 작성한 댓글 목록 (루트 + 대댓글 모두, 최신순)
-     * 각 댓글이 어떤 게시글에 달렸는지도 함께 조회 (fetch join)
+     * @param memberUuid 내가 작성한 댓글을 조회할 Member의 UUID
+     * @param pageable 페이징 정보 (페이지 번호, 사이즈, 정렬)
+     * @return CommentResponse Page
      */
     public Page<CommentResponse> getMyComments(UUID memberUuid, Pageable pageable) {
         Member member = findMemberByUuid(memberUuid);
@@ -173,10 +189,14 @@ public class CommentService {
                 });
     }
 
-    // ===================== 좋아요 =====================
+
+    // ───────────────────── 좋아요 ─────────────────────
 
     /**
      * 댓글 좋아요 토글
+     * @param memberUuid 좋아요할 혹은 좋아요 취소할  Member의 UUID
+     * @param commentId 좋아요할 혹은 좋아요 취소할 댓글의 ID
+     * @return 좋아요라면 true, 좋아요 취소라면 false반환
      */
     @Transactional
     public boolean toggleLike(UUID memberUuid, Long commentId) {
@@ -200,18 +220,36 @@ public class CommentService {
                 });
     }
 
-    // ===================== 내부 헬퍼 =====================
+    // ───────────────────── 내부 헬퍼 ─────────────────────
 
+    /**
+     * 게시글 조회
+     * @param postId 조회할 Post의 ID
+     * @throws BusinessException Post가 존재하지 않는 경우{@link ErrorCode#POST_NOT_FOUND} 예외 발생
+     * @return Post
+     */
     private Post findPostById(Long postId) {
         return postRepository.findById(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
     }
 
+    /**
+     * 댓글 조회
+     * @param commentId 조회할 Comment의 ID
+     * @throws BusinessException Comment가 존재하지 않는 경우{@link ErrorCode#COMMENT_NOT_FOUND} 예외 발생
+     * @return Comment
+     */
     private Comment findCommentById(Long commentId) {
         return commentRepository.findById(commentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
     }
 
+    /**
+     * 회원 조회
+     * @param memberUuid 조회할 Member의 UUID
+     * @throws BusinessException Member가 존재하지 않는 경우{@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
+     * @return Member
+     */
     private Member findMemberByUuid(UUID memberUuid) {
         return memberRepository.findByUuid(memberUuid)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));

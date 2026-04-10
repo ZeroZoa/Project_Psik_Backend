@@ -8,8 +8,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum Provider {
 
-    //NAVER("네이버"),
-    //APPLE("애플"),
+    NAVER("네이버"),
+    APPLE("애플"),
     GOOGLE("구글"),
     KAKAO("카카오");
 

@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-// 스킨 다이어리 서비스
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -36,7 +35,14 @@ public class SkinDiaryService {
     private final MemberRepository memberRepository;
     private final ProductRepository productRepository;
 
-    //CREATE (다이어리 작성)
+    /**
+     * 다이어리 작성
+     * @param memberUuid 다이어리를 생성할 회원의 UUID
+     * @param request 다이어리 생성 요청 DTO
+     * @throws BusinessException SkinDiary가 이미 존재하는 경우 {@link ErrorCode#DIARY_ALREADY_EXISTS} 예외 발생
+     * @throws BusinessException Member가 존재하지 않는 경우 {@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
+     * @return SkinDiaryResponse
+     */
     @Transactional
     public SkinDiaryResponse createDiary(UUID memberUuid, SkinDiaryRequest request) {
 
@@ -76,6 +82,14 @@ public class SkinDiaryService {
     }
 
     //단건 조회 - 특정 날짜의 다이어리 보기
+    /**
+     * 다이어리 단건 조회
+     * @param memberUuid 다이어리를 생성할 회원의 UUID
+     * @param recordDate 다이어리 조회할 날짜
+     * @throws BusinessException Member가 존재하지 않는 경우 {@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
+     * @throws BusinessException SkinDiary가 존재하지 않는 경우 {@link ErrorCode#DIARY_NOT_FOUND} 예외 발생
+     * @return SkinDiaryResponse
+     */
     public SkinDiaryResponse getDiaryByDate(UUID memberUuid, Instant recordDate) {
 
         Member member = memberRepository.findByUuid(memberUuid)
@@ -89,7 +103,15 @@ public class SkinDiaryService {
         return SkinDiaryResponse.from(skinDiary);
     }
 
-    //목록 조회 - 특정 년/월의 캘린더용 다이어리 리스트
+
+    /**
+     * 다이어리 목록 조회 - 특정 년/월의 캘린더용 다이어리 리스트
+     * @param memberUuid 다이어리를 생성할 회원의 UUID
+     * @param year 다이어리 조회할 연도
+     * @param month 다이어리 조회할 월
+     * @throws BusinessException Member가 존재하지 않는 경우 {@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
+     * @return List<SkinDiaryResponse>
+     */
     public List<SkinDiaryResponse> getMonthlyDiaries(UUID memberUuid, int year, int month) {
 
         Member member = memberRepository.findByUuid(memberUuid)
@@ -110,7 +132,15 @@ public class SkinDiaryService {
                 .toList();
     }
 
-    //다이어리 수정
+    /**
+     * 다이어리 수정
+     * @param memberUuid 다이어리를 수정할 회원의 UUID
+     * @param diaryId 수정할 다이어리의 diaryId
+     * @param request 다이어리 수정 요청 DTO
+     * @throws BusinessException SkinDiary가 존재하지 않는 경우 {@link ErrorCode#DIARY_NOT_FOUND}
+     * @throws BusinessException SkinDiaryr의 소유자가 아닌 경우 {@link ErrorCode#ACCESS_DENIED}
+     * @return SkinDiaryResponse
+     */
     @Transactional
     public SkinDiaryResponse updateDiary(UUID memberUuid, Long diaryId, SkinDiaryRequest request) {
 
@@ -144,7 +174,13 @@ public class SkinDiaryService {
         return SkinDiaryResponse.from(skinDiary);
     }
 
-    //다이어리 삭제
+    /**
+     * 다이어리 삭제
+     * @param memberUuid 삭제할 다이어리 소유자의 UUID
+     * @param diaryId 삭제할 다이어리의 diaryId
+     * @throws BusinessException SkinDiary가 존재하지 않는 경우 {@link ErrorCode#DIARY_NOT_FOUND}
+     * @throws BusinessException SkinDiaryR의 소유자가 아닌 경우 {@link ErrorCode#ACCESS_DENIED}
+     */
     @Transactional
     public void deleteDiary(UUID memberUuid, Long diaryId) {
 
@@ -158,7 +194,14 @@ public class SkinDiaryService {
         skinDiaryRepository.delete(skinDiary);
     }
 
-    // 기간별 다이어리 조회 (그래프용)
+    /**
+     * 그래프용 기간별 다이어리 조회 - 최근 30일
+     * @param memberUuid 다이어리를 조회할 회원의 UUID
+     * @param from 다이어리 기간 조회의 시작
+     * @param to 다이어리 기간 조회의 끝
+     * @throws BusinessException Member가 존재하지 않는 경우 {@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
+     * @return List<SkinDiaryResponse>
+     */
     public List<SkinDiaryResponse> getDiariesByRange(UUID memberUuid, Instant from, Instant to) {
         Member member = memberRepository.findByUuid(memberUuid)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
@@ -168,6 +211,8 @@ public class SkinDiaryService {
                 .map(SkinDiaryResponse::from)
                 .toList();
     }
+
+    // ───────────────────── 내부 헬퍼 ─────────────────────
 
     /**
      * Instant를 KST 기준 자정(00:00:00.000)으로 정규화

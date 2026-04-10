@@ -21,7 +21,7 @@ import java.util.UUID;
 
 //스킨 다이어리 관련 API 컨트롤러
 @Slf4j
-@Tag(name = "Skin Diary API", description = "스킨 다이어리 CRUD API")
+@Tag(name = "Skin Diary API", description = "스킨 다이어리 생성/조회/수정/삭제 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/diaries")
@@ -31,7 +31,10 @@ public class SkinDiaryController {
 
     /**
      * 다이어리 작성
-     * [POST] /api/diaries
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param request 다이어리 작성 요청
+     * @return 201 Created
+     * @see SkinDiaryService#createDiary(UUID, SkinDiaryRequest) 
      */
     @Operation(summary = "다이어리 작성", description = "해당 날짜의 스킨 다이어리를 작성합니다.")
     @PostMapping
@@ -45,7 +48,14 @@ public class SkinDiaryController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    //단건 조회 - 특정 일자
+    
+    /**
+     * 다이어리 단건 조회 - 특정 일자
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param recordDate 특정 일자
+     * @return 200 OK
+     * @see SkinDiaryService#getDiaryByDate(UUID, Instant) 
+     */
     @Operation(summary = "단건 조회", description = "특정 날짜의 다이어리를 조회합니다.")
     @GetMapping("/daily")
     public ResponseEntity<SkinDiaryResponse> getDiaryByDate(
@@ -57,8 +67,16 @@ public class SkinDiaryController {
 
         return ResponseEntity.ok(response);
     }
-
-    //목록 조회 - 월별 캘린더용
+    
+    
+    /**
+     * 다이어리 목록 조회 - 월별 캘린더용
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param year 연도
+     * @param month 월
+     * @return 200 OK
+     * @see SkinDiaryService#getMonthlyDiaries(UUID, int, int) 
+     */
     @Operation(summary = "월별 조회", description = "특정 년/월의 다이어리 목록을 조회합니다.")
     @GetMapping("/monthly")
     public ResponseEntity<List<SkinDiaryResponse>> getMonthlyDiaries(
@@ -71,8 +89,16 @@ public class SkinDiaryController {
 
         return ResponseEntity.ok(responses);
     }
-
-    //다이어리 수정
+    
+    
+    /**
+     * 다이어리 수정
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param diaryId 수정할 다이어리의 diaryId
+     * @param request 수정할 다이어리 내용
+     * @return 200 OK
+     * @see SkinDiaryService#updateDiary(UUID, Long, SkinDiaryRequest) 
+     */
     @Operation(summary = "다이어리 수정", description = "기존 다이어리를 수정합니다.")
     @PutMapping("/{diaryId}")
     public ResponseEntity<SkinDiaryResponse> updateDiary(
@@ -86,7 +112,14 @@ public class SkinDiaryController {
         return ResponseEntity.ok(response);
     }
 
-    //다이어리 삭제
+    
+    /**
+     * 다이어리 삭제
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param diaryId 삭제할 다이어리의 diaryId
+     * @return 200 OK
+     * @see SkinDiaryService#deleteDiary(UUID, Long) 
+     */
     @Operation(summary = "다이어리 삭제", description = "다이어리를 삭제합니다.")
     @DeleteMapping("/{diaryId}")
     public ResponseEntity<Void> deleteDiary(
@@ -99,7 +132,15 @@ public class SkinDiaryController {
         return ResponseEntity.noContent().build();
     }
 
-    // 기간별 조회 (최근 30일 그래프용)
+    
+    /**
+     * 그래프용 기간별 다이어리 조회 - 최근 30일
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param from 다이어리 기간 조회의 시작
+     * @param to 다이어리 기간 조회의 끝
+     * @return 200 OK
+     * @see SkinDiaryService#getDiariesByRange(UUID, Instant, Instant) 
+     */
     @Operation(summary = "기간별 다이어리 조회", description = "from~to 사이의 다이어리 목록을 조회합니다.")
     @GetMapping("/range")
     public ResponseEntity<List<SkinDiaryResponse>> getDiariesByRange(
