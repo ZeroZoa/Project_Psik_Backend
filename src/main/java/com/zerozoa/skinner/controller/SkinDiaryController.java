@@ -19,7 +19,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-//스킨 다이어리 관련 API 컨트롤러
+
 @Slf4j
 @Tag(name = "Skin Diary API", description = "스킨 다이어리 생성/조회/수정/삭제 API")
 @RestController
@@ -52,7 +52,7 @@ public class SkinDiaryController {
     /**
      * 다이어리 단건 조회 - 특정 일자
      * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
-     * @param recordDate 특정 일자
+     * @param recordDate 조회할 날짜 (ISO-8601 UTC 형식, 예: 2024-04-01T00:00:00Z)
      * @return 200 OK
      * @see SkinDiaryService#getDiaryByDate(UUID, Instant) 
      */
@@ -117,8 +117,8 @@ public class SkinDiaryController {
      * 다이어리 삭제
      * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
      * @param diaryId 삭제할 다이어리의 diaryId
-     * @return 200 OK
-     * @see SkinDiaryService#deleteDiary(UUID, Long) 
+     * @see SkinDiaryService#deleteDiary(UUID, Long)
+     * @return 204 No Content
      */
     @Operation(summary = "다이어리 삭제", description = "다이어리를 삭제합니다.")
     @DeleteMapping("/{diaryId}")
@@ -136,8 +136,8 @@ public class SkinDiaryController {
     /**
      * 그래프용 기간별 다이어리 조회 - 최근 30일
      * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
-     * @param from 다이어리 기간 조회의 시작
-     * @param to 다이어리 기간 조회의 끝
+     * @param from 조회 시작 일시 (ISO-8601 UTC 형식)
+     * @param to 조회 종료 일시 (ISO-8601 UTC 형식)
      * @return 200 OK
      * @see SkinDiaryService#getDiariesByRange(UUID, Instant, Instant) 
      */

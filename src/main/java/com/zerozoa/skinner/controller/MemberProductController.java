@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-//Member가 구매한 MemberProduct 관련 API 컨트롤러
+
 @Tag(name = "MemberProduct API", description = "샀어요 API")
 @RestController
 @RequiredArgsConstructor
@@ -24,6 +24,14 @@ public class MemberProductController {
 
     private final MemberProductService memberProductService;
 
+
+    /**
+     * 샀어요 등록
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param productId 샀어요에 등록할 제품의 ID
+     * @return 200 OK - owned(true), count(샀어요 총 수)
+     * @see MemberProductService#markAsOwned(UUID, Long)
+     */
     @Operation(summary = "샀어요 등록")
     @PostMapping("/{productId}/own")
     public ResponseEntity<Map<String, Object>> markAsOwned(
@@ -35,6 +43,14 @@ public class MemberProductController {
         return ResponseEntity.ok(Map.of("owned", true, "count", count));
     }
 
+    /**
+     * 샀어요 여부 조회
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param productId 샀어요에 여부를 조회할 제품의 ID
+     * @return 200 OK - owned(샀어요 여부), count(샀어요 총 수)
+     * @see MemberProductService#isOwned(UUID, Long)
+     * @see MemberProductService#countByProduct(Long)
+     */
     @Operation(summary = "샀어요 여부 조회")
     @GetMapping("/{productId}/own")
     public ResponseEntity<Map<String, Object>> getOwned(
@@ -47,6 +63,12 @@ public class MemberProductController {
         return ResponseEntity.ok(Map.of("owned", owned, "count", count));
     }
 
+    /**
+     * 내가 샀어요 누른 제품 목록 조회
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @return 200 OK - 내가 샀어요 등록한 제품 목록 List
+     * @see MemberProductService#getOwnedProducts(UUID)
+     */
     @Operation(summary = "내가 샀어요 누른 제품 목록")
     @GetMapping("/me/owned")
     public ResponseEntity<List<ProductDto>> getMyOwnedProducts(

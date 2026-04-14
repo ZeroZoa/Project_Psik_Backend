@@ -98,3 +98,8 @@ springdoc:
     persist-authorization: true
   api-docs:
     path: /v3/api-docs
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY}
+    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent
