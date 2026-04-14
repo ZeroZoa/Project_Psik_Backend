@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-//Ingredient 관련 API 컨트롤러
 @Slf4j
 @Tag(name = "Ingredient API", description = "성분/제품 정보 조회 API")
 @RestController
@@ -32,8 +31,8 @@ public class IngredientController {
 
     /**
      * 성분 목록 조회
-     * @param keyword 검색어
-     * @param type 성분 타입 필터
+     * @param keyword 검색어 (성분명, 설명 포함, null 허용)
+     * @param type 성분 타입 필터 (GENERAL, OTC, PRESCRIPTION, OVERSEAS, null 허용)
      * @param pageable 페이징 정보 (기본값: size=10, sort=id,desc)
      * @return 200 OK - 검색된 성분 목록 (Page)
      * @see IngredientService#getIngredients(String, IngredientType, Pageable)
@@ -53,7 +52,7 @@ public class IngredientController {
 
     /**
      * 특정 성분의 상세 정보를 조회
-     * @param id 조회할 성분의 id
+     * @param id 조회할 성분의 ID
      * @return 200 OK
      * @see IngredientService#getIngredientDetail(Long)
      */
@@ -69,7 +68,7 @@ public class IngredientController {
 
     /**
      * 피부고민에 해당하는 성분 추천
-     * @param skinConcerns 성분을 추천받기위한 피부고민
+     * @param skinConcerns 추천 성분을 조회할 피부 고민 목록 (1개 이상, 복수 선택 가능)
      * @return 200 OK
      * @see IngredientService#getRecommendedIngredients(List)
      */
