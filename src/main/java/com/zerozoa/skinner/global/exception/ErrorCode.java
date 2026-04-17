@@ -29,6 +29,11 @@ public enum ErrorCode {
     //Skin Diary (피부 일기)
     DIARY_ALREADY_EXISTS(HttpStatus.CONFLICT, "D001", "해당 날짜에 이미 작성된 다이어리가 존재합니다."),
     DIARY_NOT_FOUND(HttpStatus.NOT_FOUND, "D002", "해당 다이어리를 찾을 수 없습니다."),
+    ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "D003", "해당 피부 분석 결과를 찾을 수 없습니다."),
+    FACE_NOT_DETECTED(HttpStatus.BAD_REQUEST, "D004", "얼굴이 감지되지 않았습니다. 얼굴 사진을 업로드해주세요."),
+    ANALYSIS_ALREADY_EXISTS(HttpStatus.CONFLICT, "D005", "이미 분석이 완료된 다이어리입니다."),
+    ANALYSIS_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "D006", "하루 분석 횟수를 초과했습니다."),
+    GEMINI_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS,"D007", "AI 분석 요청이 너무 많습니다. 1분 후 다시 시도해주세요."),
 
     // Post (게시글)
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "해당 게시글을 찾을 수 없습니다."),

@@ -42,9 +42,6 @@ public class SkinDiary extends BaseTimeEntity {
     @Column(name = "skin_score", nullable = false)
     private Integer skinScore;
 
-    @Column(name = "skin_image_url")
-    private String skinImageUrl;
-
     @Column(name = "sleep_time_minutes")
     private Integer sleepTimeMinutes;
 
@@ -63,12 +60,11 @@ public class SkinDiary extends BaseTimeEntity {
     private List<SkinDiaryProduct> usedCosmetics = new ArrayList<>();
 
     @Builder
-    public SkinDiary(Member member, Instant recordDate, Integer skinScore, String skinImageUrl,
+    public SkinDiary(Member member, Instant recordDate, Integer skinScore,
                      Integer sleepTimeMinutes, Integer waterIntakeMl, List<String> diet) {
         this.member = member;
         this.recordDate = recordDate;
         this.skinScore = skinScore;
-        this.skinImageUrl = skinImageUrl;
         this.sleepTimeMinutes = sleepTimeMinutes;
         this.waterIntakeMl = waterIntakeMl;
         if (diet != null) {
@@ -80,10 +76,9 @@ public class SkinDiary extends BaseTimeEntity {
         this.usedCosmetics.add(skinDiaryProduct);
     }
 
-    public void updateDiary(Integer skinScore, String skinImageUrl, Integer sleepTimeMinutes,
+    public void updateDiary(Integer skinScore, Integer sleepTimeMinutes,
                             Integer waterIntakeMl, List<String> newDiet) {
         this.skinScore = skinScore;
-        this.skinImageUrl = skinImageUrl;
         this.sleepTimeMinutes = sleepTimeMinutes;
         this.waterIntakeMl = waterIntakeMl;
 

@@ -28,7 +28,7 @@ spring:
       hibernate:
         format_sql: true
         show_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        #dialect: org.hibernate.dialect.PostgreSQLDialect
 
   security:
     oauth2:
@@ -102,4 +102,4 @@ springdoc:
 gemini:
   api:
     key: ${GEMINI_API_KEY}
-    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent
+    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent

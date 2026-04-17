@@ -59,7 +59,6 @@ public class SkinDiaryService {
                 .member(member)
                 .recordDate(normalizedInstant)
                 .skinScore(request.skinScore())
-                .skinImageUrl(request.skinImageUrl())
                 .sleepTimeMinutes(request.sleepTimeMinutes())
                 .waterIntakeMl(request.waterIntakeMl())
                 .diet(request.diet())
@@ -153,7 +152,6 @@ public class SkinDiaryService {
 
         skinDiary.updateDiary(
                 request.skinScore(),
-                request.skinImageUrl(),
                 request.sleepTimeMinutes(),
                 request.waterIntakeMl(),
                 request.diet()

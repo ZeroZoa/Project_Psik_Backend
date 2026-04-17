@@ -13,11 +13,12 @@ public record SkinDiaryResponse(
         Long skinDiaryId,
         Instant recordDate,
         Integer skinScore,
-        String skinImageUrl,
         Integer sleepTimeMinutes,
         Integer waterIntakeMl,
         List<String> diet,
-        List<ProductDto> usedCosmetics
+        List<ProductDto> usedCosmetics,
+        Instant createdAt,
+        Instant updatedAt
 ) {
     public static SkinDiaryResponse from(SkinDiary skinDiary) {
 
@@ -35,11 +36,12 @@ public record SkinDiaryResponse(
                 skinDiary.getId(),
                 skinDiary.getRecordDate(),
                 skinDiary.getSkinScore(),
-                skinDiary.getSkinImageUrl(),
                 skinDiary.getSleepTimeMinutes(),
                 skinDiary.getWaterIntakeMl(),
                 dietList,
-                cosmeticsList
+                cosmeticsList,
+                skinDiary.getCreatedAt(),
+                skinDiary.getUpdatedAt()
         );
     }
 }

@@ -18,9 +18,6 @@ public record SkinDiaryRequest(
         @Max(value = 5, message = "점수는 5 이하이어야 합니다.")
         Integer skinScore,
 
-        // 사진은 필수가 아니므로 @NotNull 제외
-        String skinImageUrl,
-
         // 수면 시간 (분 단위)
         Integer sleepTimeMinutes,
 

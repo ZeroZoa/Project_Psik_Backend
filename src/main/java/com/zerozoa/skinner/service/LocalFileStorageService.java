@@ -1,6 +1,7 @@
 package com.zerozoa.skinner.service;
 
 import lombok.extern.slf4j.Slf4j;
+import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -10,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,6 +28,11 @@ public class LocalFileStorageService implements FileStorageService {
 
     // 저장된 파일에 접근할 수 있는 서버 기본 URL (예: http://localhost:8080)
     private final String baseUrl;
+
+    //저장될 이미지 허용 확장자
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+            ".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"
+    );
 
     /**
      * @param uploadDir 파일 업로드 루트 디렉토리 경로 (application.yaml의 app.file.upload-dir)
@@ -58,30 +65,42 @@ public class LocalFileStorageService implements FileStorageService {
     public String store(MultipartFile file, String subDirectory) {
         String originalFilename = file.getOriginalFilename();
 
-        // 원본 파일명에서 확장자 추출 (예: ".jpg", ".png")
-        // 확장자가 없는 파일은 빈 문자열로 처리
+        // 확장자 추출
         String extension = "";
         if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            extension = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
         }
 
-        // 원본 파일명 대신 UUID로 저장 → 파일명 중복 및 경로 탐색 공격(Path Traversal) 방지
+        // 확장자 없으면 ContentType으로 폴백
+        if (extension.isEmpty() && file.getContentType() != null) {
+            extension = switch (file.getContentType()) {
+                case "image/jpeg" -> ".jpg";
+                case "image/png"  -> ".png";
+                case "image/webp" -> ".webp";
+                case "image/gif"  -> ".gif";
+                case "image/bmp"  -> ".bmp";
+                default           -> ".jpg"; // 알 수 없는 경우 기본값
+            };
+        }
+
+        // 허용되지 않는 확장자 차단
+        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+            throw new RuntimeException("허용되지 않는 파일 형식입니다: " + extension);
+        }
+
+        // UUID 기반 파일명 생성 (원본 확장자 유지)
         String storedFilename = UUID.randomUUID() + extension;
 
-        // 루트 디렉토리 아래 하위 디렉토리 경로 생성 (예: uploads/posts)
         Path targetDir = uploadRootPath.resolve(subDirectory);
         try {
-            // 하위 디렉토리가 없으면 자동 생성 (이미 존재하면 통과)
             Files.createDirectories(targetDir);
-
-            // 최종 저장 경로 (예: uploads/posts/uuid.jpg)
             Path targetPath = targetDir.resolve(storedFilename);
 
-            // 실제 파일을 디스크에 저장
-            file.transferTo(targetPath.toFile());
+            Thumbnails.of(file.getInputStream())
+                    .size(1280, 1280)
+                    .outputQuality(0.8)
+                    .toFile(targetPath.toFile());
 
-            // 클라이언트가 접근할 수 있는 URL 조합하여 반환
-            // 예: http://localhost:8080/uploads/posts/uuid.jpg
             return baseUrl + "/uploads/" + subDirectory + "/" + storedFilename;
         } catch (IOException e) {
             throw new RuntimeException("파일 저장 실패: " + originalFilename, e);
