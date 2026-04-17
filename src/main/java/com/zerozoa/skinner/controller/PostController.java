@@ -31,8 +31,6 @@ public class PostController {
 
     private final PostService postService;
 
-    // ===================== CRUD =====================
-
     /**
      * 게시글 작성 (이미지 포함)
      * Content-Type: multipart/form-data
