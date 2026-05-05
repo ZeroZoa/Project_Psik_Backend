@@ -17,7 +17,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-//인증(Authentication) 관련 API 컨트롤러
 @Tag(name = "Auth API", description = "인증/토큰 관련 API")
 @RestController
 @RequestMapping("/api/auth")
@@ -29,7 +28,14 @@ public class AuthController {
     @Value("${app.cookie.secure:false}")
     private boolean cookieSecure;
 
-    //토큰 재발급 (Reissue)
+    /**
+     * 토큰 재발급 (Reissue)
+     * @param request 토큰 재발급 요청
+     * @param response 쿠키에 Refresh Token을 설정할 HTTP 응답 객체
+     * @return 200 OK - 새로 발급된 AccessToken, RefreshToken
+     * @throws BusinessException Refresh Token이 존재하지 않는 경우 {@link ErrorCode#INVALID_TOKEN} 예외 발생
+     * @see AuthService#reissue(String, String, String)
+     */
     @Operation(summary = "토큰 재발급", description = "Refresh Token을 이용하여 Access Token을 재발급합니다.")
     @PostMapping("/reissue")
     public ResponseEntity<TokenResponse> reissue(
@@ -52,7 +58,11 @@ public class AuthController {
         return ResponseEntity.ok(tokenResponse);
     }
 
-    //쿠키에서 Refresh Token을 추출하는 메서드
+    /**
+     * 쿠키에서 Refresh Token을 추출
+     * @param request 쿠키 또는 헤더에서 Refresh Token을 추출할 HTTP 요청 객체
+     * @return Refresh Token
+     */
     private String getRefreshToken(HttpServletRequest request) {
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
@@ -64,7 +74,11 @@ public class AuthController {
         return request.getHeader("Refresh-Token");
     }
 
-    //Refresh Token 쿠키 설정
+    /**
+     * Refresh Token 쿠키 설정
+     * @param response 쿠키를 설정할 HTTP 응답 객체
+     * @param refreshToken 재발급한 토큰
+     */
     private void addRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
@@ -77,8 +91,11 @@ public class AuthController {
     }
 
     /**
-     * [#4] 로그아웃
-     * Refresh Token 쿠키 삭제 + DB에서 토큰 삭제
+     * 로그아웃 (DB에서 Refresh Token 삭제)
+     * @param request 쿠키에서 Refresh Token을 추출할 HTTP 요청 객체
+     * @param response 쿠키 만료 처리를 위한 HTTP 응답 객체
+     * @return 204 No Content
+     * @see AuthService#logout(String)
      */
     @Operation(summary = "로그아웃", description = "Refresh Token을 무효화하고 쿠키를 삭제합니다.")
     @PostMapping("/logout")

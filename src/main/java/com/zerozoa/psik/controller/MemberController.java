@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-//Member 관련 API 컨트롤러
 @Slf4j
 @Tag(name = "Member API", description = "회원 정보 조회/수정/탈퇴 API")
 @RestController
@@ -64,8 +63,8 @@ public class MemberController {
     /**
      * 닉네임 수정
      * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
-     * @param request 수정할 닉네임 요청
-     * @return 200 OK
+     * @param request 수정할 닉네임 (2~9자, 한글/영문/숫자/언더스코어)
+     * @return 200 OK - 수정된 회원 정보 MemberResponse
      * @see MemberService#updateNickname(UUID, String)
      */
     @Operation(summary = "닉네임 수정", description = "현재 로그인된 사용자의 닉네임을 변경")
@@ -129,7 +128,7 @@ public class MemberController {
     ) {
         UUID uuid = SecurityUtils.extractMemberUuid(principal);
 
-        //탈퇴는 민감한 작업이므로 WARN 레벨로 로깅하여 모니터링
+        //탈퇴는 WARN 레벨로 로깅
         log.warn("[API] 회원 탈퇴 요청 - UUID: {}", uuid);
 
         memberService.deleteMember(uuid);

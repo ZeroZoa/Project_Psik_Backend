@@ -24,6 +24,13 @@ public class MyCommentController {
 
     private final CommentService commentService;
 
+    /**
+     * 내가 작성한 댓글 목록 조회
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param pageable 페이징 정보 (페이지 번호, 사이즈, 정렬)
+     * @return 200 OK - 내가 작성한 댓글 목록 Page
+     * @see CommentService#getMyComments(UUID, Pageable)
+     */
     @Operation(summary = "내가 작성한 댓글 목록 (최신순)")
     @GetMapping("/me")
     public ResponseEntity<Page<CommentResponse>> getMyComments(
