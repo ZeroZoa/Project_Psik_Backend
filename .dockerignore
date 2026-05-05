@@ -1,0 +1,10 @@
+.git
+.gradle
+.idea
+build
+uploads
+db/data
+*.md
+.env
+.DS_Store
+src/test

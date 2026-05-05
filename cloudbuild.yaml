@@ -1,0 +1,40 @@
+steps:
+  # 1. Docker 이미지 빌드
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--platform=linux/amd64'
+      - '-t'
+      - 'asia-northeast3-docker.pkg.dev/$PROJECT_ID/psik/backend:$COMMIT_SHA'
+      - '-t'
+      - 'asia-northeast3-docker.pkg.dev/$PROJECT_ID/psik/backend:latest'
+      - '.'
+
+  # 2. Artifact Registry 푸시
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'asia-northeast3-docker.pkg.dev/$PROJECT_ID/psik/backend'
+
+  # 3. Cloud Run 배포
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'psik-backend'
+      - '--image=asia-northeast3-docker.pkg.dev/$PROJECT_ID/psik/backend:$COMMIT_SHA'
+      - '--region=asia-northeast3'
+      - '--platform=managed'
+      - '--min-instances=1'
+      - '--max-instances=10'
+      - '--concurrency=80'
+      - '--cpu=1'
+      - '--memory=512Mi'
+      - '--timeout=30s'
+      - '--set-secrets=DB_URL=DB_URL:latest,DB_USERNAME=DB_USERNAME:latest,DB_PASSWORD=DB_PASSWORD:latest,JWT_SECRET=JWT_SECRET:latest,JWT_ACCESS_TOKEN_EXPIRATION_MS=JWT_ACCESS_TOKEN_EXPIRATION_MS:latest,JWT_REFRESH_TOKEN_EXPIRATION_MS=JWT_REFRESH_TOKEN_EXPIRATION_MS:latest,KAKAO_CLIENT_ID=KAKAO_CLIENT_ID:latest,KAKAO_CLIENT_SECRET=KAKAO_CLIENT_SECRET:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,OAUTH2_REDIRECT_URI=OAUTH2_REDIRECT_URI:latest,OAUTH2_SUCCESS_REDIRECT_URI=OAUTH2_SUCCESS_REDIRECT_URI:latest'
+      - '--allow-unauthenticated'
+      - '--add-cloudsql-instances=gen-lang-client-0880530479:asia-northeast3:psik-db'
+images:
+  - 'asia-northeast3-docker.pkg.dev/$PROJECT_ID/psik/backend'
