@@ -1,14 +1,14 @@
-version: '3.8'
+#version: '3.8'
 
 services:
   # 메인 데이터베이스 (PostgreSQL)
   postgres:
     image: postgres:15-alpine
-    container_name: skinner-db
+    container_name: psik-db
     environment:
-      POSTGRES_DB: skinner_postgres_db
-      POSTGRES_USER: skinner
-      POSTGRES_PASSWORD: psikskinner
+      POSTGRES_DB: psik_postgres_db
+      POSTGRES_USER: psik
+      POSTGRES_PASSWORD: psikskinner0620
     ports:
       - "5432:5432"
     volumes:
