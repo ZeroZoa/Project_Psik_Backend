@@ -7,7 +7,7 @@ spring:
   jpa:
     hibernate:
       # 최초 배포 시 테이블 자동 생성 — 이후 validate로 변경 예정
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         format_sql: false
@@ -15,7 +15,7 @@ spring:
 
   # 최초 배포 시 Flyway 비활성화 — 테이블 생성 후 활성화 예정
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 0
