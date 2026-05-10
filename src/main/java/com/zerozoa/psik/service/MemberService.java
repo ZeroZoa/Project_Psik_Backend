@@ -107,7 +107,7 @@ public class MemberService {
     public Member updateSkinConcerns(UUID memberUuid, SkinConcernUpdateRequest request) {
         Member member = getByUuid(memberUuid);
         member.updateSkinConcerns(request.skinConcerns());
-        return memberRepository.save(member);
+        return member; // 영속 상태 엔티티 → dirty checking이 트랜잭션 커밋 시 자동 UPDATE
     }
 
     /**

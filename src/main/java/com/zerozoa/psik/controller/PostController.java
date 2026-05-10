@@ -9,7 +9,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -17,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
+@Validated
 @Tag(name = "Post API", description = "게시글 CRUD 및 좋아요 API")
 @RestController
 @RequiredArgsConstructor
@@ -46,10 +51,18 @@ public class PostController {
             @RequestPart(value = "images", required = false) List<MultipartFile> images
     ) {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        log.info("[API] 게시글 작성 요청 - memberUuid={}", memberUuid);
         PostResponse response = postService.createPost(memberUuid, request, images);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    /**
+     * 게시글 상세 조회 (비로그인 사용자도 조회 가능)
+     * @param principal Spring Security Context에 저장된 인증 객체 (비로그인 시 null)
+     * @param postId 조회할 게시글의 ID
+     * @return 200 OK - 게시글 상세 정보 (로그인 시 좋아요 여부 포함)
+     * @see PostService#getPost(Long, UUID)
+     */
     @Operation(summary = "게시글 상세 조회")
     @GetMapping("/{postId}")
     public ResponseEntity<PostResponse> getPost(
@@ -62,7 +75,9 @@ public class PostController {
     }
 
     /**
-     * 홈 화면용 게시글 조회
+     * 홈 화면용 게시글 조회 (비로그인 사용자도 조회 가능)
+     * @return 200 OK - 홈 화면용 게시글
+     * @see PostService#getHomePosts()
      */
     @Operation(summary = "커뮤니티 홈 섹션 (HOT/NEW/POPULAR)")
     @GetMapping()
@@ -71,7 +86,9 @@ public class PostController {
     }
 
     /**
-     * 홈 화면용 HOT 게시글 전체 목록
+     * 홈 화면용 HOT 게시글 전체 목록 (비로그인 사용자도 조회 가능)
+     * @return 200 OK - 홈 화면용 HOT 게시글 전체 목록
+     * @see PostService#getHotPosts(Pageable)
      */
     @Operation(summary = "HOT 게시글 전체 목록 (최근 7일 좋아요 순)")
     @GetMapping("/hot")
@@ -81,8 +98,11 @@ public class PostController {
         return ResponseEntity.ok(postService.getHotPosts(pageable));
     }
 
+
     /**
-     * 홈 화면용 NEW 게시글 전체 목록
+     * 홈 화면용 NEW 게시글 전체 목록 (비로그인 사용자도 조회 가능)
+     * @return 200 OK - 홈 화면용 NEW 게시글 전체 목록
+     * @see PostService#getNewPosts(Pageable)
      */
     @Operation(summary = "NEW 게시글 전체 목록 (최신순)")
     @GetMapping("/new")
@@ -93,7 +113,9 @@ public class PostController {
     }
 
     /**
-     * 홈 화면용 POPULAR 게시글 전체 목록
+     * 홈 화면용 POPULAR 게시글 전체 목록 (비로그인 사용자도 조회 가능)
+     * @return 200 OK - 홈 화면용 POPULAR 게시글 전체 목록
+     * @see PostService#getPopularPosts(Pageable)
      */
     @Operation(summary = "POPULAR 게시글 전체 목록 (최근 7일 조회수 순)")
     @GetMapping("/popular")
@@ -116,12 +138,15 @@ public class PostController {
             @RequestPart(value = "images", required = false) List<MultipartFile> images
     ) {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        log.info("[API] 게시글 수정 요청 - memberUuid={}, postId={}", memberUuid, postId);
         return ResponseEntity.ok(postService.updatePost(memberUuid, postId, request, images));
     }
 
     /**
-     * 게시글 삭제
-     * 연관관계도 삭제확인
+     * 게시글 삭제 - 연관관계도 삭제확인
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param postId  삭제할 게시글의 ID
+     * @return 204 No Content
      */
     @Operation(summary = "게시글 삭제")
     @DeleteMapping("/{postId}")
@@ -130,14 +155,22 @@ public class PostController {
             @PathVariable Long postId
     ) {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        log.warn("[API] 게시글 삭제 요청 - memberUuid={}, postId={}", memberUuid, postId);
         postService.deletePost(memberUuid, postId);
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * 게시글 키워드 검색
+     * @param keyword 검색할 키워드 (제목 + 내용 대상)
+     * @param pageable 페이지네이션 정보 (기본값: size=20)
+     * @return 200 OK - 검색 결과 게시글 목록 (페이지)
+     * @see PostService#searchPosts(String, Pageable)
+     */
     @Operation(summary = "게시글 검색")
     @GetMapping("/search")
     public ResponseEntity<Page<PostResponse>> searchPosts(
-            @RequestParam String keyword,
+            @RequestParam @NotBlank String keyword,
             @PageableDefault(size = 20) Pageable pageable
     ) {
         return ResponseEntity.ok(postService.searchPosts(keyword, pageable));
@@ -145,6 +178,13 @@ public class PostController {
 
     // ===================== 마이페이지 =====================
 
+    /**
+     * 내가 작성한 게시글 목록 조회
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param pageable 페이지네이션 정보 (기본값: size=20)
+     * @return 200 OK - 내가 작성한 게시글 목록 (최신순, 페이지)
+     * @see PostService#getMyPosts(UUID, Pageable)
+     */
     @Operation(summary = "내가 작성한 게시글 목록")
     @GetMapping("/me")
     public ResponseEntity<Page<PostResponse>> getMyPosts(
@@ -155,6 +195,13 @@ public class PostController {
         return ResponseEntity.ok(postService.getMyPosts(memberUuid, pageable));
     }
 
+    /**
+     * 내가 좋아요 누른 게시글 목록 조회
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param pageable 페이지네이션 정보 (기본값: size=20)
+     * @return 200 OK - 내가 좋아요한 게시글 목록 (페이지)
+     * @see PostService#getMyLikedPosts(UUID, Pageable)
+     */
     @Operation(summary = "내가 좋아요 누른 게시글 목록")
     @GetMapping("/me/liked")
     public ResponseEntity<Page<PostResponse>> getMyLikedPosts(
@@ -165,6 +212,13 @@ public class PostController {
         return ResponseEntity.ok(postService.getMyLikedPosts(memberUuid, pageable));
     }
 
+    /**
+     * 내가 댓글 단 게시글 목록 조회
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param pageable 페이지네이션 정보 (기본값: size=20)
+     * @return 200 OK - 내가 댓글을 작성한 게시글 목록 (페이지)
+     * @see PostService#getMyCommentedPosts(UUID, Pageable)
+     */
     @Operation(summary = "내가 댓글 단 게시글 목록")
     @GetMapping("/me/commented")
     public ResponseEntity<Page<PostResponse>> getMyCommentedPosts(
@@ -177,6 +231,13 @@ public class PostController {
 
     // ===================== 좋아요 =====================
 
+    /**
+     * 게시글 좋아요 토글 (좋아요 ↔ 좋아요 취소)
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param postId 좋아요할 혹은 좋아요 취소할 게시글의 ID
+     * @return 200 OK - {"liked": true} 좋아요, {"liked": false} 좋아요 취소
+     * @see PostService#toggleLike(UUID, Long)
+     */
     @Operation(summary = "게시글 좋아요 토글")
     @PostMapping("/{postId}/like")
     public ResponseEntity<Map<String, Boolean>> toggleLike(

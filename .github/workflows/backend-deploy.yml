@@ -1,0 +1,82 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  IMAGE: asia-northeast3-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/psik-backend/psik-backend
+  SERVICE: psik-backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker asia-northeast3-docker.pkg.dev --quiet
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ env.IMAGE }}:${{ github.sha }} \
+            -t ${{ env.IMAGE }}:latest .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.IMAGE }}:${{ github.sha }}
+          docker push ${{ env.IMAGE }}:latest
+
+      - name: Get project number
+        id: project
+        run: |
+          PROJECT_NUMBER=$(gcloud projects describe ${{ env.PROJECT_ID }} \
+            --format="value(projectNumber)")
+          echo "number=${PROJECT_NUMBER}" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE }} \
+            --image=${{ env.IMAGE }}:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --min-instances=1 \
+            --max-instances=3 \
+            --memory=1Gi \
+            --cpu=1 \
+            --timeout=60 \
+            --concurrency=80 \
+            --allow-unauthenticated \
+            --service-account=${{ steps.project.outputs.number }}-compute@developer.gserviceaccount.com \
+            --add-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:psik-db \
+            --set-secrets="\
+          DB_URL=DB_URL:latest,\
+          DB_USERNAME=DB_USERNAME:latest,\
+          DB_PASSWORD=DB_PASSWORD:latest,\
+          JWT_SECRET=JWT_SECRET:latest,\
+          JWT_ACCESS_TOKEN_EXPIRATION_MS=JWT_ACCESS_TOKEN_EXPIRATION_MS:latest,\
+          JWT_REFRESH_TOKEN_EXPIRATION_MS=JWT_REFRESH_TOKEN_EXPIRATION_MS:latest,\
+          KAKAO_CLIENT_ID=KAKAO_CLIENT_ID:latest,\
+          KAKAO_CLIENT_SECRET=KAKAO_CLIENT_SECRET:latest,\
+          GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,\
+          GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,\
+          GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest,\
+          GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+          SERVER_PORT=SERVER_PORT:latest,\
+          OAUTH2_SUCCESS_REDIRECT_URI=OAUTH2_SUCCESS_REDIRECT_URI:latest,\
+          OAUTH2_PROFILE_SETUP_REDIRECT_URI=OAUTH2_PROFILE_SETUP_REDIRECT_URI:latest,\
+          APP_FILE_BASE_URL=APP_FILE_BASE_URL:latest"

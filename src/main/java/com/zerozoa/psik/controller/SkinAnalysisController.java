@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,7 +16,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
-// 피부 분석 관련 API 컨트롤러
+
+@Slf4j
 @Tag(name = "Skin Analysis API", description = "피부 이미지 분석 API")
 @RestController
 @RequiredArgsConstructor
@@ -40,6 +42,7 @@ public class SkinAnalysisController {
             @RequestPart("image") MultipartFile image
     ) {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        log.info("[API] 피부 분석 요청 - memberUuid={}, diaryId={}", memberUuid, diaryId);
         return ResponseEntity.ok(skinAnalysisService.analyze(memberUuid, diaryId, image));
     }
 

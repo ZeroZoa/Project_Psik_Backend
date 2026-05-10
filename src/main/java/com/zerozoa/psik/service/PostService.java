@@ -1,14 +1,17 @@
 package com.zerozoa.psik.service;
 
+import com.zerozoa.psik.domain.community.Comment;
 import com.zerozoa.psik.domain.community.Post;
 import com.zerozoa.psik.domain.community.PostImage;
 import com.zerozoa.psik.domain.community.PostLike;
 import com.zerozoa.psik.domain.member.Member;
+import com.zerozoa.psik.domain.member.Role;
 import com.zerozoa.psik.dto.community.PostHomeResponse;
 import com.zerozoa.psik.dto.community.PostRequest;
 import com.zerozoa.psik.dto.community.PostResponse;
 import com.zerozoa.psik.global.exception.BusinessException;
 import com.zerozoa.psik.global.exception.ErrorCode;
+import com.zerozoa.psik.repository.community.CommentLikeRepository;
 import com.zerozoa.psik.repository.community.CommentRepository;
 import com.zerozoa.psik.repository.community.PostLikeRepository;
 import com.zerozoa.psik.repository.community.PostRepository;
@@ -41,6 +44,7 @@ public class PostService {
     private final CommentRepository commentRepository;
     private final MemberRepository memberRepository;
     private final FileStorageService fileStorageService;
+    private final CommentLikeRepository commentLikeRepository;
 
 
     /**
@@ -164,25 +168,26 @@ public class PostService {
         //글 수정
         post.update(request.title(), request.content());
 
-        // 기존 이미지 파일 삭제
+        // 기존 이미지 URL 미리 보관
         List<String> oldImageUrls = post.getImages().stream()
                 .map(PostImage::getImageUrl)
                 .toList();
-        fileStorageService.deleteAll(oldImageUrls);
 
-        //기존 이미지 엔티티 제거 후 새 이미지 저장
-        post.replaceImages(new ArrayList<>());
-
-        //이미지 리스트 확인 및 유효성 검사 및 갯수 검사
         if (images != null && !images.isEmpty()) {
             validateImageCount(images.size());
-            saveImages(post, images);
+
+            // 1. 새 이미지 먼저 업로드 (실패해도 기존 파일 안전)
+            List<PostImage> newPostImages = uploadImages(post, images);
+
+            // 2. 업로드 성공 후 DB 교체
+            post.replaceImages(newPostImages);
+
+            // 3. 기존 파일 삭제 (업로드 성공 이후 → 파일 유실 방지)
+            fileStorageService.deleteAll(oldImageUrls);
         }
 
-        //좋아요 눌렀는지 확인
         Member member = findMemberByUuid(memberUuid);
         boolean likedByMe = postLikeRepository.existsByPostAndMember(post, member);
-
         return PostResponse.fromDetail(post, likedByMe);
     }
 
@@ -195,19 +200,26 @@ public class PostService {
      */
     @Transactional
     public void deletePost(UUID memberUuid, Long postId) {
-        //글 조회 + 소유자 확인
         Post post = findPostById(postId);
-        if (!post.isOwner(memberUuid)) {
+        Member member = findMemberByUuid(memberUuid); // ← 추가
+
+        // 관리자이거나 작성자인 경우에만 삭제 허용
+        if (member.getRole() != Role.ADMIN && !post.isOwner(memberUuid)) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED);
         }
 
-        // 이미지 파일 삭제
         List<String> imageUrls = post.getImages().stream()
                 .map(PostImage::getImageUrl)
                 .toList();
         fileStorageService.deleteAll(imageUrls);
 
-        //댓글, 좋아요, 글 순차적으로 삭제(연관관계)
+        List<Comment> rootComments = commentRepository.findRootCommentsByPost(post);
+
+        for (Comment root : rootComments) {
+            root.getChildren().forEach(commentLikeRepository::deleteAllByComment);
+            commentLikeRepository.deleteAllByComment(root);
+        }
+
         commentRepository.deleteAllByPost(post);
         postLikeRepository.deleteAllByPost(post);
         postRepository.delete(post);
@@ -357,5 +369,37 @@ public class PostService {
 
             post.addImage(postImage);
         }
+    }
+
+    /**
+     * 이미지 업로드 후 PostImage 리스트 반환 (DB 저장 없음, updatePost 전용)
+     * 업로드 도중 실패 시 이미 업로드된 파일을 정리하고 예외 재던짐
+     */
+    private List<PostImage> uploadImages(Post post, List<MultipartFile> images) {
+        List<PostImage> result = new ArrayList<>();
+        List<String> uploadedUrls = new ArrayList<>();
+
+        try {
+            for (int i = 0; i < images.size(); i++) {
+                MultipartFile file = images.get(i);
+                if (file.isEmpty()) continue;
+
+                String url = fileStorageService.store(file, "posts");
+                uploadedUrls.add(url);
+
+                result.add(PostImage.builder()
+                        .post(post)
+                        .imageUrl(url)
+                        .sortOrder(i)
+                        .originalFilename(file.getOriginalFilename())
+                        .build());
+            }
+        } catch (Exception e) {
+            // 부분 업로드된 파일 정리 후 예외 재던짐
+            fileStorageService.deleteAll(uploadedUrls);
+            throw e;
+        }
+
+        return result;
     }
 }

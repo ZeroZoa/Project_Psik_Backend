@@ -9,5 +9,6 @@ public record InquiryRequest(
         String title,
 
         @NotBlank(message = "문의 & 불편 내용을 입력해주세요.")
+        @Size(max = 2000, message = "내용은 2000자 이내로 작성해주세요.")
         String content
 ) {}

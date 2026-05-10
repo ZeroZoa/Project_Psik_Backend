@@ -28,11 +28,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *Spring Security 설정
- *인증(Authentication) 및 인가(Authorization) 정책 설정
- *JWT 필터 등록 및 세션 정책 설정 (Stateless)
- *OAuth2 로그인 설정
- *CORS(교차 출처 리소스 공유) 설정
+ * Spring Security 설정
+ * 인증(Authentication) 및 인가(Authorization) 정책 설정
+ * JWT 필터 등록 및 세션 정책 설정 (Stateless)
+ * OAuth2 로그인 설정
+ * CORS(교차 출처 리소스 공유) 설정
  */
 @Slf4j
 @Configuration
@@ -46,8 +46,8 @@ public class SecurityConfig {
     private final ObjectMapper objectMapper;
 
     /**
-     *Security Filter Chain
-     *요청이 들어오면 거쳐가는 보안 필터들의 순서와 규칙을 정의
+     * Security Filter Chain
+     * 요청이 들어오면 거쳐가는 보안 필터들의 순서와 규칙을 정의
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -69,22 +69,21 @@ public class SecurityConfig {
                         .requestMatchers("/", "/css/**", "/images/**", "/js/**", "/favicon.ico").permitAll()
                         .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**").permitAll()
                         .requestMatchers("/api/members/check-nickname").permitAll()
+
                         // 관리자 전용 — ADMIN 권한 필요
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/ingredients/**").permitAll()
-                        .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/products/**").permitAll()
 
                         //프로필 - 인증 필요
                         .requestMatchers("/api/members/me/**").authenticated()
 
-                        //게시글 — 마이페이지 전용 먼저 (GET /api/posts/me/** 보호)
+                        //게시글 — 마이페이지 전용 먼저
                         .requestMatchers("/api/posts/me/**").authenticated()
                         //게시글 — GET은 공개, 나머지는 인증 필요
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/posts/**").permitAll()
                         .requestMatchers("/api/posts/**").authenticated()
-
                         //댓글 — GET은 공개, 나머지는 인증 필요
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/posts/*/comments").permitAll()
                         .requestMatchers("/api/posts/*/comments/**").authenticated()
                         .requestMatchers("/api/comments/**").authenticated()
 
@@ -124,7 +123,7 @@ public class SecurityConfig {
                         })
                         // [403 Forbidden] 권한이 없는 사용자 접근 시
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            log.warn("Forbidden: {}", accessDeniedException.getMessage());
+                            log.warn("[Forbidden] URI: {}, Message: {}", request.getRequestURI(), accessDeniedException.getMessage());
                             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding("UTF-8");
@@ -146,8 +145,8 @@ public class SecurityConfig {
     }
 
     /**
-     *CORS 설정
-     *프론트엔드(Flutter)와 백엔드(Spring)의 도메인이 다를 때 요청을 허용하기 위함
+     * CORS 설정
+     * 프론트엔드(Flutter)와 백엔드(Spring)의 도메인이 다를 때 요청을 허용하기 위함
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {

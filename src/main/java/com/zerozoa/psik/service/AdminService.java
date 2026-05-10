@@ -225,4 +225,16 @@ public class AdminService {
         return productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
     }
+
+    /**
+     * ProductId로 제품 찾기
+     * @param productId 찾을 제품의 ID
+     * @throws BusinessException Product가 존재하지 않는 경우 {@link ErrorCode#PRODUCT_NOT_FOUND} 예외 발생
+     * @return Product
+     */
+    public ProductDto getProductById(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        return ProductDto.from(product);
+    }
 }

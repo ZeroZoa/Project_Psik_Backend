@@ -5,10 +5,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface ProductRepository extends JpaRepository<Product, Long> {
-    // 추후 필요한 쿼리 메서드가 생기면 여기에 추가 (예: findByBrand 등)
+/**
+ * 화장품 제품 Repository
+ */
 
-    // 추가
+public interface ProductRepository extends JpaRepository<Product, Long> {
+    // 제품명 또는 브랜드명으로 검색 (대소문자 무시)
     Page<Product> findByNameContainingIgnoreCaseOrBrandContainingIgnoreCase(
             String name, String brand, Pageable pageable
     );

@@ -44,8 +44,6 @@ public class IngredientController {
             @Parameter(description = "성분 타입 필터 (GENERAL, OTC, PRESCRIPTION, OVERSEAS)") @RequestParam(required = false) IngredientType type,
             @Parameter(description = "페이징 설정 (기본: 10개, ID 역순)") @PageableDefault(sort = "id", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        log.info("[API] Get Ingredients - keyword: {}, type: {}, page: {}", keyword, type, pageable.getPageNumber());
-
         // 서비스 계층에서 이미 DTO 변환이 완료된 Page 객체를 반환받음
         return ResponseEntity.ok(ingredientService.getIngredients(keyword, type, pageable));
     }
@@ -61,32 +59,20 @@ public class IngredientController {
     public ResponseEntity<IngredientDetailResponse> getIngredientDetail(
             @Parameter(description = "성분 ID") @PathVariable Long id
     ) {
-        log.info("[API] Get Ingredient Detail - id: {}", id);
-
         return ResponseEntity.ok(ingredientService.getIngredientDetail(id));
     }
 
     /**
      * 피부고민에 해당하는 성분 추천
      * @param skinConcerns 추천 성분을 조회할 피부 고민 목록 (1개 이상, 복수 선택 가능)
-     * @return 200 OK
-     * @see IngredientService#getRecommendedIngredients(List)
+     * @return 200 OK - 피부 고민별 추천 성분 그룹 목록
+     * @see IngredientService#getRecommendedByGroup(List)
      */
     @Operation(summary = "피부 고민별 성분 추천")
     @GetMapping("/recommended")
     public ResponseEntity<List<RecommendedGroupResponse>> getRecommended(
             @RequestParam List<SkinConcern> skinConcerns
     ) {
-        log.info("[API] Get Recommended Ingredients - skinConcerns: {}", skinConcerns);
-
-        List<RecommendedGroupResponse> result = skinConcerns.stream()
-                .map(concern -> new RecommendedGroupResponse(
-                        concern.name(),
-                        concern.getDescription(),
-                        ingredientService.getRecommendedIngredients(List.of(concern))
-                ))
-                .toList();
-
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(ingredientService.getRecommendedByGroup(skinConcerns));
     }
 }

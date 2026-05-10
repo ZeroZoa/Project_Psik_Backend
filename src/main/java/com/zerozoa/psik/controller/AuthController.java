@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @Tag(name = "Auth API", description = "인증/토큰 관련 API")
 @RestController
 @RequestMapping("/api/auth")
@@ -51,10 +53,9 @@ public class AuthController {
         String ip = ClientUtils.getClientIp(request);
         String userAgent = request.getHeader("User-Agent");
 
+        log.info("[API] 토큰 재발급 요청 - ip={}", ip);
         TokenResponse tokenResponse = authService.reissue(refreshToken, ip, userAgent);
-
         addRefreshTokenCookie(response, tokenResponse.refreshToken());
-
         return ResponseEntity.ok(tokenResponse);
     }
 
@@ -105,6 +106,7 @@ public class AuthController {
     ) {
         // DB에서 Refresh Token 삭제
         String refreshToken = getRefreshToken(request);
+        log.info("[API] 로그아웃 요청");
         if (refreshToken != null) {
             authService.logout(refreshToken);
         }
@@ -121,6 +123,7 @@ public class AuthController {
 
         // Access Token 쿠키도 만료 처리
         ResponseCookie accessCookie = ResponseCookie.from("accessToken", "")
+                .httpOnly(true)
                 .path("/")
                 .maxAge(0)
                 .sameSite(cookieSecure ? "None" : "Lax")

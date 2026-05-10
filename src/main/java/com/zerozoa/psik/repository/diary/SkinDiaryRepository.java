@@ -12,16 +12,19 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * 피부 다이어리 Repository
+ */
 @Repository
 public interface SkinDiaryRepository extends JpaRepository<SkinDiary, Long> {
 
     //특정 회원의 특정 날짜(자정 Instant) 다이어리 단건 조회
     Optional<SkinDiary> findByMemberAndRecordDate(Member member, Instant recordDate);
 
-    //이미 해당 날짜에 다이어리를 작성했는지 확인 (중복 방지용)
+    //해당 날짜 다이어리 작성 여부 확인 (중복 작성 방지)
     boolean existsByMemberAndRecordDate(Member member, Instant recordDate);
 
-    //특정 회원의 특정 기간 다이어리 목록 조회 (캘린더 뷰)
+    //특정 기간 다이어리 목록 조회 — 캘린더 뷰에 사용
     @Query("SELECT d FROM SkinDiary d WHERE d.member = :member " +
             "AND d.recordDate >= :start AND d.recordDate < :end " +
             "ORDER BY d.recordDate ASC")
@@ -30,5 +33,6 @@ public interface SkinDiaryRepository extends JpaRepository<SkinDiary, Long> {
             @Param("start") Instant start,
             @Param("end") Instant end);
 
+    //특정 기간 다이어리 목록 조회 — UUID 기반 (서비스에서 Member 엔티티 없이 조회 시 사용)
     List<SkinDiary> findAllByMember_UuidAndRecordDateBetween(UUID memberUuid, Instant from, Instant to);
 }

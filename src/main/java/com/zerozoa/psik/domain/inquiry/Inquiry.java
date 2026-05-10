@@ -8,6 +8,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 1:1 문의 답변 엔티티
+ * Inquiry와 1:1 관계이며, 문의당 답변은 1개
+ * Inquiry.answer(cascade ALL)에 종속되어 문의 삭제 시 함께 삭제됨
+ */
+
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -43,6 +49,7 @@ public class Inquiry extends BaseTimeEntity {
         this.content = content;
     }
 
+    /** 답변 완료 여부 — answer 존재 시 true */
     public boolean isAnswered() {
         return this.answer != null;
     }

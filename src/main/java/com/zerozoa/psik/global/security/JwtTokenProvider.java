@@ -58,18 +58,30 @@ public class JwtTokenProvider {
         return builder.compact();
     }
 
+    //Payload 추출
+    private Claims parseClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
     //토큰에서 UUID 추출 (String으로 반환하되, 호출부에서 변환)
     public String getPayload(String token) {
         try {
-            return Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload()
-                    .getSubject();
+            return parseClaims(token).getSubject();
         } catch (JwtException | IllegalArgumentException e) {
-            // validateToken을 먼저 호출하지 않고 파싱하려 할 때 발생
             throw new IllegalArgumentException("유효하지 않은 토큰입니다.");
+        }
+    }
+
+    //토큰에서 Role 추출
+    public String getRole(String token) {
+        try {
+            return parseClaims(token).get("role", String.class);
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
         }
     }
 
@@ -93,19 +105,6 @@ public class JwtTokenProvider {
         } catch (IllegalArgumentException e) {
             log.warn("JWT 토큰이 잘못되었습니다.");
             throw new JwtException("JWT 토큰이 잘못됨", e);
-        }
-    }
-
-    public String getRole(String token) {
-        try {
-            return Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload()
-                    .get("role", String.class);
-        } catch (JwtException | IllegalArgumentException e) {
-            return null;
         }
     }
 }

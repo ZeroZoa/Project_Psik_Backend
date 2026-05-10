@@ -61,11 +61,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     log.debug("Security Context Save - UUID: {}, Role: {}", uuid, role);
-                } else {
-                    // validateToken이 false 반환 → 만료 or 잘못된 토큰
-                    // SecurityContext를 비워두면 EntryPoint가 401로 처리하게 됨
-                    log.warn("[JwtFilter] 유효하지 않은 토큰 - 인증 없이 진행 (EntryPoint에서 401 처리 예정)");
-                    SecurityContextHolder.clearContext();
                 }
             } catch (JwtException e) {
                 log.warn("[JwtFilter] 유효하지 않은 JWT 토큰 - 401 응답: {}", e.getMessage());

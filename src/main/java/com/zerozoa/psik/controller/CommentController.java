@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Tag(name = "Comment API", description = "댓글 CRUD 및 좋아요 API")
 @RestController
 @RequiredArgsConstructor
@@ -42,13 +44,14 @@ public class CommentController {
             @Valid @RequestBody CommentRequest request
     ) {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        log.info("[API] 댓글 작성 요청 - memberUuid={}, postId={}", memberUuid, postId);
         CommentResponse response = commentService.createComment(memberUuid, postId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
      * 댓글 목록 조회
-     * @param principal Spring Security Context에 저장된 인증 객체
+     * @param principal Spring Security Context에 저장된 인증 객체 (비로그인 시 null, 로그인 시 좋아요 여부 포함)
      * @param postId 댓글을 조회할 게시글의 ID
      * @return 200 OK
      * @see CommentService#getComments(Long, UUID)
@@ -82,6 +85,7 @@ public class CommentController {
             @Valid @RequestBody CommentRequest request
     ) {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        log.info("[API] 댓글 수정 요청 - memberUuid={}, commentId={}", memberUuid, commentId);
         return ResponseEntity.ok(commentService.updateComment(memberUuid, commentId, request));
     }
 
@@ -101,6 +105,7 @@ public class CommentController {
             @PathVariable Long commentId
     ) {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        log.warn("[API] 댓글 삭제 요청 - memberUuid={}, commentId={}", memberUuid, commentId);
         commentService.deleteComment(memberUuid, commentId);
         return ResponseEntity.noContent().build();
     }
@@ -110,7 +115,7 @@ public class CommentController {
      * @param principal Spring Security Context에 저장된 인증 객체
      * @param postId 댓글이 속한 게시글의 ID
      * @param commentId 좋아요 토글할 댓글의 ID
-     * @return 200 OK
+     * @return 200 OK - {"liked": true} 좋아요, {"liked": false} 좋아요 취소
      * @see CommentService#toggleLike(UUID, Long)
      */
     @Operation(summary = "댓글 좋아요 토글")

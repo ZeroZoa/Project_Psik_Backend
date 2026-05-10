@@ -1,5 +1,7 @@
 package com.zerozoa.psik.global.exception;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -35,6 +37,16 @@ public class GlobalExceptionHandler {
         return ErrorResponse.toResponseEntity(ErrorCode.INVALID_INPUT_VALUE, message);
     }
 
+    @ExceptionHandler(ConstraintViolationException.class)
+    protected ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException e) {
+        String message = e.getConstraintViolations().stream()
+                .map(ConstraintViolation::getMessage)
+                .findFirst()
+                .orElse("잘못된 입력값입니다.");
+        log.warn("[Constraint Violation] {}", message);
+        return ErrorResponse.toResponseEntity(ErrorCode.INVALID_INPUT_VALUE, message);
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     protected ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
         log.warn("[Request Body Error] {}", e.getMessage());
@@ -44,7 +56,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     protected ResponseEntity<ErrorResponse> handleMethodNotAllowed(HttpRequestMethodNotSupportedException e) {
         log.warn("[Method Not Allowed] {}", e.getMessage());
-        return ErrorResponse.toResponseEntity(ErrorCode.INVALID_INPUT_VALUE, "지원하지 않는 요청 방식입니다.");
+        return ErrorResponse.toResponseEntity(ErrorCode.METHOD_NOT_ALLOWED);
     }
 
     //그 외 모든 알 수 없는 서버 에러 처리

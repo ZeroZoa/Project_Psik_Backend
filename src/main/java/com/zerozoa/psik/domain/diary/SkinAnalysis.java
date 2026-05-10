@@ -7,6 +7,11 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 피부 분석 결과 엔티티
+ * SkinDiary와 1:1 관계이며, 다이어리당 분석 결과는 1개
+ * 생성 시 AnalysisStatus.PENDING으로 시작하고, AI 분석 완료/실패 시 상태 전환
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -59,7 +64,7 @@ public class SkinAnalysis extends BaseTimeEntity {
         this.analysisStatus = AnalysisStatus.PENDING;
     }
 
-    //분석 완료 시 결과 업데이트
+    /** AI 분석 완료 후 결과값 저장 및 상태를 COMPLETED로 전환 */
     public void completeAnalysis(Integer acneScore,
                                  Integer wrinkleScore, Integer toneScore,
                                  Integer oilScore, String summary) {
@@ -71,7 +76,7 @@ public class SkinAnalysis extends BaseTimeEntity {
         this.analysisStatus = AnalysisStatus.COMPLETED;
     }
 
-    //분석 실패 시 상태 업데이트
+    /** AI 분석 실패 시 상태를 FAILED로 전환 */
     public void failAnalysis() {
         this.analysisStatus = AnalysisStatus.FAILED;
     }

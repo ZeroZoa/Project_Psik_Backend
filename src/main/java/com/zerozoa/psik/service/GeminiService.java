@@ -93,10 +93,10 @@ public class GeminiService {
                 throw new BusinessException(ErrorCode.GEMINI_RATE_LIMIT_EXCEEDED);
             }
             log.error("[Gemini] API 호출 실패: {}", e.getMessage());
-            throw new RuntimeException("Gemini API 호출 중 오류가 발생했습니다.", e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Gemini API 호출 중 오류가 발생했습니다.");
         } catch (Exception e) {
             log.error("[Gemini] API 호출 실패: {}", e.getMessage());
-            throw new RuntimeException("Gemini API 호출 중 오류가 발생했습니다.", e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Gemini API 호출 중 오류가 발생했습니다.");
         }
     }
 
@@ -124,7 +124,7 @@ public class GeminiService {
             return text;
         } catch (Exception e) {
             log.error("[Gemini] 응답 파싱 실패: {}", response);
-            throw new RuntimeException("Gemini 응답 파싱 중 오류가 발생했습니다.", e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Gemini API 호출 중 오류가 발생했습니다.");
         }
     }
 }

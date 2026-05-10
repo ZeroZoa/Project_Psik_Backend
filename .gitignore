@@ -42,4 +42,6 @@ db/data/
 
 ### QueryDSL Generated ###
 /src/main/generated/
-**/Q*.javauploads/
+**/Q*.java
+
+uploads/

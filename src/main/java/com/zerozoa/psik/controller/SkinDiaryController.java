@@ -8,11 +8,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -21,6 +24,7 @@ import java.util.UUID;
 
 
 @Slf4j
+@Validated
 @Tag(name = "Skin Diary API", description = "스킨 다이어리 생성/조회/수정/삭제 API")
 @RestController
 @RequiredArgsConstructor
@@ -43,6 +47,7 @@ public class SkinDiaryController {
             @Valid @RequestBody SkinDiaryRequest request
     ) {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        log.info("[API] 다이어리 작성 요청 - memberUuid={}", memberUuid);
         SkinDiaryResponse response = skinDiaryService.createDiary(memberUuid, request);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -81,8 +86,8 @@ public class SkinDiaryController {
     @GetMapping("/monthly")
     public ResponseEntity<List<SkinDiaryResponse>> getMonthlyDiaries(
             @Parameter(hidden = true) @AuthenticationPrincipal Object principal,
-            @RequestParam("year") int year,
-            @RequestParam("month") int month
+            @RequestParam("year") @Min(2000) @Max(2100) int year,
+            @RequestParam("month") @Min(1) @Max(12) int month
     ) {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
         List<SkinDiaryResponse> responses = skinDiaryService.getMonthlyDiaries(memberUuid, year, month);
@@ -107,6 +112,7 @@ public class SkinDiaryController {
             @Valid @RequestBody SkinDiaryRequest request
     ) {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        log.info("[API] 다이어리 수정 요청 - memberUuid={}, diaryId={}", memberUuid, diaryId);
         SkinDiaryResponse response = skinDiaryService.updateDiary(memberUuid, diaryId, request);
 
         return ResponseEntity.ok(response);
@@ -117,8 +123,8 @@ public class SkinDiaryController {
      * 다이어리 삭제
      * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
      * @param diaryId 삭제할 다이어리의 diaryId
-     * @see SkinDiaryService#deleteDiary(UUID, Long)
      * @return 204 No Content
+     * @see SkinDiaryService#deleteDiary(UUID, Long)
      */
     @Operation(summary = "다이어리 삭제", description = "다이어리를 삭제합니다.")
     @DeleteMapping("/{diaryId}")
@@ -127,6 +133,7 @@ public class SkinDiaryController {
             @PathVariable("diaryId") Long diaryId
     ) {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        log.warn("[API] 다이어리 삭제 요청 - memberUuid={}, diaryId={}", memberUuid, diaryId);
         skinDiaryService.deleteDiary(memberUuid, diaryId);
 
         return ResponseEntity.noContent().build();
@@ -134,7 +141,7 @@ public class SkinDiaryController {
 
     
     /**
-     * 그래프용 기간별 다이어리 조회 - 최근 30일
+     * 그래프용 기간별 다이어리 조회
      * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
      * @param from 조회 시작 일시 (ISO-8601 UTC 형식)
      * @param to 조회 종료 일시 (ISO-8601 UTC 형식)

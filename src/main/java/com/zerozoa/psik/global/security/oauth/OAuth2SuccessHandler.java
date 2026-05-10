@@ -42,6 +42,13 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Value("${app.oauth2.profile-setup-redirect-uri:http://localhost:3000/profile-setup}")
     private String webProfileSetupUri;
 
+    // JWT 만료 시간 — yaml 설정과 쿠키 maxAge를 일치시키기 위해 주입
+    @Value("${jwt.access-token-expiration-ms}")
+    private long accessTokenExpirationMs;
+
+    @Value("${jwt.refresh-token-expiration-ms}")
+    private long refreshTokenExpirationMs;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
 
@@ -58,11 +65,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 userAgent
         );
 
-        // Refresh Token -> HttpOnly Cookie (보안 필수, 7일)
-        addCookie(response, "refreshToken", tokenResponse.refreshToken(), 7 * 24 * 60 * 60, true);
+        // Refresh Token -> HttpOnly Cookie (보안 필수)
+        addCookie(response, "refreshToken", tokenResponse.refreshToken(), (int)(refreshTokenExpirationMs / 1000), true);
 
-        // Access Token -> 일반 Cookie (프론트가 읽기용, 5분)
-        addCookie(response, "accessToken", tokenResponse.accessToken(), 5 * 60, false);
+        // Access Token -> 일반 Cookie (프론트가 읽기용)
+        addCookie(response, "accessToken", tokenResponse.accessToken(), (int)(accessTokenExpirationMs / 1000), false);
 
         String redirectUri = member.isProfileComplete() ? webRedirectUri : webProfileSetupUri;
         log.info("[OAuth2] Web Login Success. Redirecting to: {}", redirectUri);

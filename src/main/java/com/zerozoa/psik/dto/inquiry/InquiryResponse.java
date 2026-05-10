@@ -1,6 +1,7 @@
 package com.zerozoa.psik.dto.inquiry;
 
 import com.zerozoa.psik.domain.inquiry.Inquiry;
+import com.zerozoa.psik.domain.inquiry.InquiryAnswer;
 
 import java.time.Instant;
 
@@ -23,6 +24,19 @@ public record InquiryResponse(
                 inquiry.isAnswered(),
                 answer != null ? answer.getContent() : null,
                 answer != null ? answer.getCreatedAt() : null,
+                inquiry.getMember().getNickname(),
+                inquiry.getCreatedAt()
+        );
+    }
+
+    public static InquiryResponse fromWithAnswer(Inquiry inquiry, InquiryAnswer answer) {
+        return new InquiryResponse(
+                inquiry.getId(),
+                inquiry.getTitle(),
+                inquiry.getContent(),
+                true,
+                answer.getContent(),
+                answer.getCreatedAt(),
                 inquiry.getMember().getNickname(),
                 inquiry.getCreatedAt()
         );

@@ -9,13 +9,18 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
+/**
+ * 게시글 좋아요 엔티티
+ * (post_id, member_id) 복합 유니크 제약으로 중복 좋아요 방지
+ * 좋아요 추가·취소 시 Post.increaseLikeCount() / decreaseLikeCount() 함께 호출
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "post_like",
         uniqueConstraints = {
-                //중복방지
+                // 한 회원이 같은 게시글에 중복 좋아요 방지
                 @UniqueConstraint(
                         name = "uk_post_like_post_member",
                         columnNames = {"post_id", "member_id"}

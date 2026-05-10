@@ -29,4 +29,9 @@ public class InquiryAnswer extends BaseTimeEntity {
         this.inquiry = inquiry;
         this.content = content;
     }
+
+    /** 관리자가 답변 내용 수정 */
+    public void updateContent(String content) {
+        this.content = content;
+    }
 }

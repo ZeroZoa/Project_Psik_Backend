@@ -11,15 +11,19 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
 @Slf4j
+@Validated
 @Tag(name = "Member API", description = "회원 정보 조회/수정/탈퇴 API")
 @RestController
 @RequiredArgsConstructor
@@ -55,7 +59,8 @@ public class MemberController {
      */
     @Operation(summary = "닉네임 중복 확인", description = "true: 중복됨(사용 불가), false: 중복안됨(사용 가능)")
     @GetMapping("/check-nickname")
-    public ResponseEntity<Boolean> checkNickname(@RequestParam String nickname) {
+    public ResponseEntity<Boolean> checkNickname(
+            @RequestParam @NotBlank @Size(min = 2, max = 9) String nickname) {
         boolean isDuplicate = memberService.isNicknameDuplicate(nickname);
         return ResponseEntity.ok(isDuplicate);
     }
@@ -74,6 +79,7 @@ public class MemberController {
             @RequestBody @Valid NicknameRequest request
     ) {
         UUID uuid = SecurityUtils.extractMemberUuid(principal);
+        log.info("[API] 닉네임 수정 요청 - UUID: {}", uuid);
         Member member = memberService.updateNickname(uuid, request.nickname());
         return ResponseEntity.ok(MemberResponse.from(member));
     }
@@ -92,6 +98,7 @@ public class MemberController {
             @RequestBody @Valid SkinConcernUpdateRequest request
     ) {
         UUID uuid = SecurityUtils.extractMemberUuid(principal);
+        log.info("[API] 피부 고민 수정 요청 - UUID: {}", uuid);
         Member member = memberService.updateSkinConcerns(uuid, request);
         return ResponseEntity.ok(MemberResponse.from(member));
     }
@@ -130,9 +137,7 @@ public class MemberController {
 
         //탈퇴는 WARN 레벨로 로깅
         log.warn("[API] 회원 탈퇴 요청 - UUID: {}", uuid);
-
         memberService.deleteMember(uuid);
-
         return ResponseEntity.noContent().build();
     }
 }

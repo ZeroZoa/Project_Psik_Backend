@@ -5,6 +5,7 @@ import com.zerozoa.psik.domain.contents.IngredientType;
 import com.zerozoa.psik.domain.member.SkinConcern;
 import com.zerozoa.psik.dto.contents.IngredientDetailResponse;
 import com.zerozoa.psik.dto.contents.IngredientResponse;
+import com.zerozoa.psik.dto.contents.RecommendedGroupResponse;
 import com.zerozoa.psik.global.exception.BusinessException;
 import com.zerozoa.psik.global.exception.ErrorCode;
 import com.zerozoa.psik.repository.contents.IngredientRepository;
@@ -61,4 +62,20 @@ public class IngredientService {
                 .map(IngredientResponse::from)
                 .toList();
     }
+
+    /**
+     * 피부 고민별 추천 성분 그룹 조회
+     * @param skinConcerns 추천 성분을 조회할 피부 고민 목록 (1개 이상)
+     * @return 피부 고민별 추천 성분 그룹 목록
+     */
+    public List<RecommendedGroupResponse> getRecommendedByGroup(List<SkinConcern> skinConcerns) {
+        return skinConcerns.stream()
+                .map(concern -> new RecommendedGroupResponse(
+                        concern.name(),
+                        concern.getDescription(),
+                        getRecommendedIngredients(List.of(concern))
+                ))
+                .toList();
+    }
+
 }

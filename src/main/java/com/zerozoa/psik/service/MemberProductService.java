@@ -10,12 +10,14 @@ import com.zerozoa.psik.repository.contents.MemberProductRepository;
 import com.zerozoa.psik.repository.contents.ProductRepository;
 import com.zerozoa.psik.repository.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -48,10 +50,16 @@ public class MemberProductService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
         product.incrementOwnedCount();
-        memberProductRepository.save(MemberProduct.builder()
-                .member(member)
-                .product(product)
-                .build());
+
+        try {
+            memberProductRepository.save(MemberProduct.builder()
+                    .member(member)
+                    .product(product)
+                    .build());
+        } catch (DataIntegrityViolationException e) {
+            // 동시 요청으로 UniqueConstraint 위반 시 비즈니스 예외로 변환
+            throw new BusinessException(ErrorCode.ALREADY_OWNED_PRODUCT);
+        }
 
         return product.getOwnedCount();
     }
@@ -69,23 +77,15 @@ public class MemberProductService {
     }
 
     /**
-     * 특정 제품의 샀어요 등록 여부 확인
-     * @param uuid 확인할 회원의 UUID
-     * @param productId 확인할 제품의 ID
-     * @return 샀어요 등록 시 {@code true}, 미등록 시 {@code false}
-     */
-    public boolean isOwned(UUID uuid, Long productId) {
-        return memberProductRepository.existsByMember_UuidAndProduct_Id(uuid, productId);
-    }
-
-
-    /**
-     * 특정 제품의 샀어요 총 수 조회
+     * 샀어요 여부 + 총 샀어요 수 단일 쿼리 조회
+     * @param memberUuid 조회할 회원의 UUID
      * @param productId 조회할 제품의 ID
-     * @return 해당 제품의 샀어요 총 수
+     * @return owned(샀어요 여부), count(총 샀어요 수)
      */
-    public long countByProduct(Long productId) {
-        return memberProductRepository.countByProduct_Id(productId);
+    public Map<String, Object> getOwnStatus(UUID memberUuid, Long productId) {
+        boolean owned = memberProductRepository.existsByMember_UuidAndProduct_Id(memberUuid, productId);
+        long count = memberProductRepository.countByProduct_Id(productId);
+        return Map.of("owned", owned, "count", count);
     }
 
     /**

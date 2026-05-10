@@ -9,6 +9,11 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Refresh Token 리포지토리
+ * 토큰 재발급, 로그아웃, 만료 토큰 정리에 사용
+ */
+
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 
     //토큰 값으로 조회(토큰 재발급 및 검증용)

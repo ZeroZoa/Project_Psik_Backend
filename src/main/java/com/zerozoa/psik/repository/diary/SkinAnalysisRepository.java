@@ -10,6 +10,9 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.Optional;
 
+/**
+ * 피부 분석 Repository
+ */
 public interface SkinAnalysisRepository extends JpaRepository<SkinAnalysis, Long> {
 
     // 다이어리로 분석 결과 조회
@@ -18,7 +21,7 @@ public interface SkinAnalysisRepository extends JpaRepository<SkinAnalysis, Long
     // 다이어리로 분석 결과 존재 여부 확인
     boolean existsBySkinDiary(SkinDiary skinDiary);
 
-    // 오늘 날짜 기준 회원의 분석 횟수 조회
+    // 오늘 날짜 기준 회원의 분석 횟수 조회 — 일일 분석 횟수 제한 체크에 사용
     @Query("SELECT COUNT(sa) FROM SkinAnalysis sa WHERE sa.skinDiary.member = :member AND sa.createdAt >= :startOfDay AND sa.createdAt < :endOfDay")
     long countTodayAnalysisByMember(@Param("member") Member member,
                                     @Param("startOfDay") Instant startOfDay,

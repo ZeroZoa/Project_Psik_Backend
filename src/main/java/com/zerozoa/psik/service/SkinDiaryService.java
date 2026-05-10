@@ -41,6 +41,7 @@ public class SkinDiaryService {
      * @param request 다이어리 생성 요청 DTO
      * @throws BusinessException SkinDiary가 이미 존재하는 경우 {@link ErrorCode#DIARY_ALREADY_EXISTS} 예외 발생
      * @throws BusinessException Member가 존재하지 않는 경우 {@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
+     * @throws BusinessException 존재하지 않는 제품 ID가 포함된 경우 {@link ErrorCode#PRODUCT_NOT_FOUND} 예외 발생
      * @return SkinDiaryResponse
      */
     @Transactional
@@ -66,6 +67,12 @@ public class SkinDiaryService {
 
         if (request.usedProductIds() != null && !request.usedProductIds().isEmpty()) {
             List<Product> products = productRepository.findAllById(request.usedProductIds());
+
+            // 요청한 ID 중 존재하지 않는 제품이 있으면 즉시 에러
+            if (products.size() != request.usedProductIds().size()) {
+                throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "존재하지 않는 제품이 포함되어 있습니다.");
+            }
+
             for (Product product : products) {
                 SkinDiaryProduct diaryProduct = SkinDiaryProduct.builder()
                         .skinDiary(skinDiary)
@@ -76,14 +83,13 @@ public class SkinDiaryService {
         }
 
         SkinDiary savedDiary = skinDiaryRepository.save(skinDiary);
-
+        log.info("[SkinDiary] 다이어리 생성 완료 - memberUuid={}, recordDate={}", memberUuid, normalizedInstant);
         return SkinDiaryResponse.from(savedDiary);
     }
 
-    //단건 조회 - 특정 날짜의 다이어리 보기
     /**
      * 다이어리 단건 조회
-     * @param memberUuid 다이어리를 생성할 회원의 UUID
+     * @param memberUuid 다이어리를 조회할 회원의 UUID
      * @param recordDate 다이어리 조회할 날짜
      * @throws BusinessException Member가 존재하지 않는 경우 {@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
      * @throws BusinessException SkinDiary가 존재하지 않는 경우 {@link ErrorCode#DIARY_NOT_FOUND} 예외 발생
@@ -102,10 +108,9 @@ public class SkinDiaryService {
         return SkinDiaryResponse.from(skinDiary);
     }
 
-
     /**
      * 다이어리 목록 조회 - 특정 년/월의 캘린더용 다이어리 리스트
-     * @param memberUuid 다이어리를 생성할 회원의 UUID
+     * @param memberUuid 다이어리를 조회할 회원의 UUID
      * @param year 다이어리 조회할 연도
      * @param month 다이어리 조회할 월
      * @throws BusinessException Member가 존재하지 않는 경우 {@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
@@ -137,7 +142,8 @@ public class SkinDiaryService {
      * @param diaryId 수정할 다이어리의 diaryId
      * @param request 다이어리 수정 요청 DTO
      * @throws BusinessException SkinDiary가 존재하지 않는 경우 {@link ErrorCode#DIARY_NOT_FOUND}
-     * @throws BusinessException SkinDiaryr의 소유자가 아닌 경우 {@link ErrorCode#ACCESS_DENIED}
+     * @throws BusinessException SkinDiary의 소유자가 아닌 경우 {@link ErrorCode#ACCESS_DENIED}
+     * @throws BusinessException 존재하지 않는 제품 ID가 포함된 경우 {@link ErrorCode#PRODUCT_NOT_FOUND} 예외 발생
      * @return SkinDiaryResponse
      */
     @Transactional
@@ -160,6 +166,12 @@ public class SkinDiaryService {
         List<SkinDiaryProduct> newCosmetics = new ArrayList<>();
         if (request.usedProductIds() != null && !request.usedProductIds().isEmpty()) {
             List<Product> products = productRepository.findAllById(request.usedProductIds());
+
+            // 요청한 ID 중 존재하지 않는 제품이 있으면 즉시 에러
+            if (products.size() != request.usedProductIds().size()) {
+                throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "존재하지 않는 제품이 포함되어 있습니다.");
+            }
+
             for (Product product : products) {
                 newCosmetics.add(SkinDiaryProduct.builder()
                         .skinDiary(skinDiary)
@@ -168,7 +180,7 @@ public class SkinDiaryService {
             }
         }
         skinDiary.updateCosmetics(newCosmetics);
-
+        log.info("[SkinDiary] 다이어리 수정 완료 - memberUuid={}, diaryId={}", memberUuid, diaryId);
         return SkinDiaryResponse.from(skinDiary);
     }
 
@@ -177,7 +189,7 @@ public class SkinDiaryService {
      * @param memberUuid 삭제할 다이어리 소유자의 UUID
      * @param diaryId 삭제할 다이어리의 diaryId
      * @throws BusinessException SkinDiary가 존재하지 않는 경우 {@link ErrorCode#DIARY_NOT_FOUND}
-     * @throws BusinessException SkinDiaryR의 소유자가 아닌 경우 {@link ErrorCode#ACCESS_DENIED}
+     * @throws BusinessException SkinDiary의 소유자가 아닌 경우 {@link ErrorCode#ACCESS_DENIED}
      */
     @Transactional
     public void deleteDiary(UUID memberUuid, Long diaryId) {
@@ -193,10 +205,10 @@ public class SkinDiaryService {
     }
 
     /**
-     * 그래프용 기간별 다이어리 조회 - 최근 30일
+     * 그래프용 기간별 다이어리 조회
      * @param memberUuid 다이어리를 조회할 회원의 UUID
-     * @param from 다이어리 기간 조회의 시작
-     * @param to 다이어리 기간 조회의 끝
+     * @param from 조회 시작 시각 (inclusive)
+     * @param to 조회 종료 시각 (exclusive)
      * @throws BusinessException Member가 존재하지 않는 경우 {@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
      * @return List<SkinDiaryResponse>
      */

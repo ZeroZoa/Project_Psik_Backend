@@ -12,6 +12,7 @@ import com.zerozoa.psik.repository.inquiry.InquiryAnswerRepository;
 import com.zerozoa.psik.repository.inquiry.InquiryRepository;
 import com.zerozoa.psik.repository.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -73,10 +75,8 @@ public class InquiryService {
 
         inquiryAnswerRepository.save(answer);
 
-        // 답변 포함해서 다시 조회
-        return InquiryResponse.from(
-                inquiryRepository.findById(inquiryId)
-                        .orElseThrow(() -> new BusinessException(ErrorCode.INQUIRY_NOT_FOUND))
-        );
+        log.info("[Inquiry] 답변 등록 완료 - inquiryId={}", inquiryId);
+
+        return InquiryResponse.fromWithAnswer(inquiry, answer);
     }
 }

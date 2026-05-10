@@ -22,10 +22,12 @@ public class SkinDiaryProduct {
     @Column(name = "skin_diary_product_id")
     private Long id;
 
+    /** 이 기록이 속한 다이어리 */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "skin_diary_id", nullable = false)
     private SkinDiary skinDiary;
 
+    /** 사용한 화장품 */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;

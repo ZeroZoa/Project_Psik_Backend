@@ -18,7 +18,11 @@ import java.util.List;
 
 import static com.zerozoa.psik.domain.contents.QIngredient.ingredient;
 
-//QueryDSL을 사용한 성분 리포지토리 구현체
+/**
+ * IngredientRepositoryCustom QueryDSL 구현체
+ * containsIgnoreCase로 대소문자 무시 검색 지원
+ * PageableExecutionUtils로 불필요한 count 쿼리 최적화
+ */
 @RequiredArgsConstructor
 public class IngredientRepositoryImpl implements IngredientRepositoryCustom {
 

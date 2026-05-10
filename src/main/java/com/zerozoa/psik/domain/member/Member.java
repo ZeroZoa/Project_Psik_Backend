@@ -108,7 +108,10 @@ public class Member extends BaseTimeEntity {
         }
     }
 
-    //소셜 로그인 시 이메일과 전화번호 동기화 -> 카카오/구글 등에서 정보가 바뀌었을 경우를 대비
+    /**
+     * 소셜 로그인 시 이메일·전화번호 동기화
+     * 카카오/구글 등에서 정보가 변경되었을 경우에만 갱신 (null이거나 기존 값과 동일하면 유지)
+     */
     public void updateSocialInfo(String email, String phoneNumber) {
         // null이 아니고, 기존 값과 다를 때만 갱신 (불필요한 변경 방지)
         if (email != null && !email.equals(this.email)) {
@@ -119,12 +122,18 @@ public class Member extends BaseTimeEntity {
         }
     }
 
-    //피부 고민 수정
+    /**
+     * 피부 고민 목록 수정
+     * 기존 목록을 전달된 목록으로 덮어씀 (빈 리스트 허용)
+     */
     public void updateSkinConcerns(List<SkinConcern> skinConcerns) {
         this.skinConcerns = skinConcerns;
     }
 
-    //프로필 정보 수정 -> 닉네임, 프로필 사진
+    /**
+     * 닉네임 및 프로필 사진 수정
+     * null 또는 빈 값이 들어오면 기존 값 유지
+     */
     public void updateProfile(String nickname, String profileImageUrl) {
         if (nickname != null && !nickname.isBlank()) {
             this.nickname = nickname;
@@ -134,7 +143,16 @@ public class Member extends BaseTimeEntity {
         }
     }
 
+    /**
+     * 최초 프로필 설정 (소셜 로그인 후 필수 입력)
+     * 호출 시 profileComplete = true로 변경되어 이후 재설정 불가
+     */
     public void setupProfile(String nickname, Gender gender, Integer birthYear, SkinType skinType, List<SkinConcern> skinConcerns) {
+
+        if (nickname == null || nickname.isBlank()) {
+            throw new IllegalArgumentException("닉네임은 필수입니다.");
+        }
+
         this.nickname = nickname;
         this.gender = gender;
         this.birthYear = birthYear;

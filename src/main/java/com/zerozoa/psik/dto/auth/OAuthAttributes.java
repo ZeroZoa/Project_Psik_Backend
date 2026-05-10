@@ -89,6 +89,10 @@ public record OAuthAttributes(
     private static OAuthAttributes ofNaver(String userNameAttributeName, Map<String, Object> attributes) {
         // 네이버는 response라는 키 안에 모든 정보가 담겨옴
         Map<String, Object> response = (Map<String, Object>) attributes.get("response");
+        if (response == null) {
+            log.warn("네이버 로그인 응답에 'response' 필드가 없습니다.");
+            response = Map.of();
+        }
 
         return OAuthAttributes.builder()
                 .provider(Provider.NAVER)

@@ -4,6 +4,11 @@ import lombok.Getter;
 
 import java.util.List;
 
+/**
+ * 피부 고민 Enum
+ * 회원 프로필 설정 시 복수 선택 가능하며, 성분 추천 필터링에 활용됨
+ * relatedTags: 해당 고민과 연관된 성분 효능 키워드 목록 (추천 로직에서 매칭에 사용)
+ */
 @Getter
 public enum SkinConcern {
     ACNE("여드름", List.of("여드름", "모공", "트러블", "피지", "염증")),

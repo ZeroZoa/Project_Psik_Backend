@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+@Slf4j
 @Tag(name = "Inquiry API", description = "문의하기 API")
 @RestController
 @RequiredArgsConstructor
@@ -29,7 +31,13 @@ public class InquiryController {
 
     private final InquiryService inquiryService;
 
-    /** 문의 등록 (로그인 필요) */
+    /**
+     * 문의 등록
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param request 문의 등록 요청 DTO
+     * @return 201 Created - 등록된 문의 정보
+     * @see InquiryService#createInquiry(UUID, InquiryRequest)
+     */
     @Operation(summary = "문의 등록")
     @PostMapping
     public ResponseEntity<InquiryResponse> createInquiry(
@@ -37,11 +45,18 @@ public class InquiryController {
             @Valid @RequestBody InquiryRequest request
     ) {
         UUID memberUuid = SecurityUtils.extractMemberUuid(principal);
+        log.info("[API] 문의 등록 요청 - memberUuid={}", memberUuid);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(inquiryService.createInquiry(memberUuid, request));
     }
 
-    /** 내 문의 목록 (로그인 필요) */
+    /**
+     * 내 문의 목록 조회
+     * @param principal Spring Security Context에 저장된 인증 객체 (JWT 필터에서 주입)
+     * @param pageable 페이지네이션 정보 (기본값: size=20)
+     * @return 200 OK - 내 문의 목록 (페이지)
+     * @see InquiryService#getMyInquiries(UUID, Pageable)
+     */
     @Operation(summary = "내 문의 목록")
     @GetMapping("/mine")
     public ResponseEntity<Page<InquiryResponse>> getMyInquiries(
@@ -52,7 +67,12 @@ public class InquiryController {
         return ResponseEntity.ok(inquiryService.getMyInquiries(memberUuid, pageable));
     }
 
-    /** 전체 문의 목록 (관리자 전용) */
+    /**
+     * 전체 문의 목록 조회 (관리자 전용)
+     * @param pageable 페이지네이션 정보 (기본값: size=20)
+     * @return 200 OK - 전체 문의 목록 (페이지)
+     * @see InquiryService#getAllInquiries(Pageable)
+     */
     @Operation(summary = "전체 문의 목록 (관리자)")
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
@@ -62,7 +82,13 @@ public class InquiryController {
         return ResponseEntity.ok(inquiryService.getAllInquiries(pageable));
     }
 
-    /** 답변 등록 (관리자 전용) */
+    /**
+     * 문의 답변 등록 (관리자 전용)
+     * @param inquiryId 답변을 등록할 문의의 ID
+     * @param request 답변 등록 요청 DTO
+     * @return 201 Created - 답변이 포함된 문의 정보
+     * @see InquiryService#createAnswer(Long, InquiryAnswerRequest)
+     */
     @Operation(summary = "문의 답변 등록 (관리자)")
     @PostMapping("/{inquiryId}/answer")
     @PreAuthorize("hasRole('ADMIN')")
@@ -70,6 +96,7 @@ public class InquiryController {
             @PathVariable Long inquiryId,
             @Valid @RequestBody InquiryAnswerRequest request
     ) {
+        log.info("[API] 문의 답변 등록 요청 - inquiryId={}", inquiryId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(inquiryService.createAnswer(inquiryId, request));
     }

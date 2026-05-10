@@ -20,7 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -85,26 +88,31 @@ public class CommentService {
      */
     public List<CommentResponse> getComments(Long postId, UUID memberUuid) {
         Post post = findPostById(postId);
-
-        // 비로그인이면 likedByMe 전부 false
         Member member = (memberUuid != null) ? findMemberByUuid(memberUuid) : null;
 
-        //루트 댓글 조회
-        List<Comment> rootComments = commentRepository.findRootCommentsByPost(post);
+        // 1. 게시글의 전체 댓글 한 번에 조회 (root + children, 쿼리 1번)
+        List<Comment> allComments = commentRepository.findAllByPost(post);
 
-        //각 루트 댓글에 대해 대댓글 조회 + likedByMe 계산
-        return rootComments.stream()
+        // 2. 회원이 좋아요한 댓글 ID 목록 한 번에 조회 (쿼리 1번)
+        Set<Long> likedCommentIds = (member != null)
+                ? commentLikeRepository.findLikedCommentIdsByMemberAndPost(member, post)
+                : Set.of();
+
+        // 3. 대댓글을 부모 ID 기준으로 그루핑 (Java 메모리에서 처리, 추가 쿼리 없음)
+        Map<Long, List<Comment>> childrenMap = allComments.stream()
+                .filter(c -> !c.isRoot())
+                .collect(Collectors.groupingBy(c -> c.getParent().getId()));
+
+        // 4. 루트 댓글 기준으로 트리 조립
+        return allComments.stream()
+                .filter(Comment::isRoot)
                 .map(root -> {
-                    boolean rootLikedByMe = (member != null)
-                            && commentLikeRepository.existsByCommentAndMember(root, member);
+                    boolean rootLikedByMe = likedCommentIds.contains(root.getId());
 
-                    List<CommentResponse> children = commentRepository
-                            .findChildComments(root).stream()
-                            .map(child -> {
-                                boolean childLikedByMe = (member != null)
-                                        && commentLikeRepository.existsByCommentAndMember(child, member);
-                                return CommentResponse.from(child, childLikedByMe);
-                            })
+                    List<CommentResponse> children = childrenMap
+                            .getOrDefault(root.getId(), List.of())
+                            .stream()
+                            .map(child -> CommentResponse.from(child, likedCommentIds.contains(child.getId())))
                             .toList();
 
                     return CommentResponse.fromWithChildren(root, rootLikedByMe, children);

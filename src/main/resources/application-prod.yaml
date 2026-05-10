@@ -20,12 +20,9 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
 
-# Cloud Run은 /tmp만 쓰기 가능 — GCS 전환 전 임시 사용
 app:
   file:
-    upload-dir: /tmp/uploads
-    base-url: ${GCS_BASE_URL:https://storage.googleapis.com/psik}
-
+    base-url: ${APP_FILE_BASE_URL}
   cookie:
     secure: true  # HTTPS 환경
   oauth2:

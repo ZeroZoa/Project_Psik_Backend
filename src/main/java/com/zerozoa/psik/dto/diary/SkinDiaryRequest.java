@@ -18,10 +18,14 @@ public record SkinDiaryRequest(
         @Max(value = 5, message = "점수는 5 이하이어야 합니다.")
         Integer skinScore,
 
-        // 수면 시간 (분 단위)
+        // 수면 시간(분 단위)
+        @Min(value = 0, message = "수면 시간은 0 이상이어야 합니다.")
+        @Max(value = 1000, message = "수면 시간은 1000분 이하이어야 합니다.")
         Integer sleepTimeMinutes,
 
         // 물 섭취량 (ml 단위)
+        @Min(value = 0, message = "물 섭취량은 0 이상이어야 합니다.")
+        @Max(value = 10000, message = "물 섭취량은 10000ml 이하이어야 합니다.")
         Integer waterIntakeMl,
 
         // 식단 리스트 (예: ["비빔밥", "치킨"])
