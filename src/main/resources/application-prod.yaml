@@ -15,7 +15,7 @@ spring:
 
   # 최초 배포 시 Flyway 비활성화 — 테이블 생성 후 활성화 예정
   flyway:
-    enabled: false
+    enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 0
