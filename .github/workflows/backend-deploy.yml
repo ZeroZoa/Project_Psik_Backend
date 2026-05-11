@@ -60,7 +60,6 @@ jobs:
             --cpu=1 \
             --timeout=60 \
             --concurrency=80 \
-            --allow-unauthenticated \
             --service-account=${{ steps.project.outputs.number }}-compute@developer.gserviceaccount.com \
             --add-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:psik-db \
             --set-secrets="\
