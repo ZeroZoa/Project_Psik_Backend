@@ -37,8 +37,8 @@ out/
 .vscode/
 .env
 
-db/
-db/data/
+/db/
+/db/data/
 
 ### QueryDSL Generated ###
 /src/main/generated/

@@ -90,6 +90,7 @@ app:
 # 서버 포트 설정
 server:
   port: ${SERVER_PORT}
+  forward-headers-strategy: framework
 
 # 로그 레벨 설정
 logging:
