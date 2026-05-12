@@ -72,8 +72,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         addCookie(response, "accessToken", tokenResponse.accessToken(), (int)(accessTokenExpirationMs / 1000), false);
 
         String redirectUri = member.isProfileComplete() ? webRedirectUri : webProfileSetupUri;
+        String redirectWithToken = redirectUri + "?accessToken=" + tokenResponse.accessToken();
         log.info("[OAuth2] Web Login Success. Redirecting to: {}", redirectUri);
-        getRedirectStrategy().sendRedirect(request, response, redirectUri);
+        getRedirectStrategy().sendRedirect(request, response, redirectWithToken);
     }
 
     private void addCookie(HttpServletResponse response, String name, String value, int maxAge, boolean httpOnly) {
