@@ -21,7 +21,8 @@ import java.io.IOException;
 /**
  * OAuth2 로그인 성공 핸들러
  * 소셜 로그인(카카오/구글) 성공 시 JWT(Access/Refresh Token)를 생성하고,
- * Refresh Token은 HttpOnly 쿠키에, Access Token은 일반 쿠키에 저장 후 리다이렉트합니다.
+ * Refresh Token은 HttpOnly 쿠키에 저장하고,
+ * Access Token은 URL 파라미터로 프론트엔드에 전달 후 리다이렉트합니다.
  */
 @Slf4j
 @Component
@@ -41,10 +42,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     //프로필 세팅을 위한 url
     @Value("${app.oauth2.profile-setup-redirect-uri:http://localhost:3000/profile-setup}")
     private String webProfileSetupUri;
-
-    // JWT 만료 시간 — yaml 설정과 쿠키 maxAge를 일치시키기 위해 주입
-    @Value("${jwt.access-token-expiration-ms}")
-    private long accessTokenExpirationMs;
 
     @Value("${jwt.refresh-token-expiration-ms}")
     private long refreshTokenExpirationMs;
@@ -66,22 +63,20 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         );
 
         // Refresh Token -> HttpOnly Cookie (보안 필수)
-        addCookie(response, "refreshToken", tokenResponse.refreshToken(), (int)(refreshTokenExpirationMs / 1000), true);
+        addCookie(response, "refreshToken", tokenResponse.refreshToken(), (int)(refreshTokenExpirationMs / 1000));
 
-        // Access Token -> 일반 Cookie (프론트가 읽기용)
-        addCookie(response, "accessToken", tokenResponse.accessToken(), (int)(accessTokenExpirationMs / 1000), false);
-
+        // Access Token은 URL 파라미터로 전달 (크로스 도메인 해결)
         String redirectUri = member.isProfileComplete() ? webRedirectUri : webProfileSetupUri;
         String redirectWithToken = redirectUri + "?accessToken=" + tokenResponse.accessToken();
         log.info("[OAuth2] Web Login Success. Redirecting to: {}", redirectUri);
         getRedirectStrategy().sendRedirect(request, response, redirectWithToken);
     }
 
-    private void addCookie(HttpServletResponse response, String name, String value, int maxAge, boolean httpOnly) {
+    private void addCookie(HttpServletResponse response, String name, String value, int maxAge) {
         ResponseCookie cookie = ResponseCookie.from(name, value)
                 .path("/")
                 .maxAge(maxAge)
-                .httpOnly(httpOnly)
+                .httpOnly(true)
                 .secure(cookieSecure)
                 .sameSite(cookieSecure ? "None" : "Lax")
                 .build();
