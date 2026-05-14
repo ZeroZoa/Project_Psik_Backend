@@ -132,7 +132,7 @@ public class AdminController {
     @Operation(summary = "전체 제품 목록 조회 (성분 연결용)")
     @GetMapping("/products")
     public ResponseEntity<Page<ProductDto>> getAllProducts(
-            @PageableDefault(size = 20, sort = "id") Pageable pageable
+            @PageableDefault(size = 200, sort = "id") Pageable pageable  // 20 → 200
     ) {
         return ResponseEntity.ok(adminService.getAllProducts(pageable));
     }
