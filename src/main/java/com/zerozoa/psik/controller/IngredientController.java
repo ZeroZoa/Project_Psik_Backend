@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -40,10 +41,9 @@ public class IngredientController {
     @GetMapping
     public ResponseEntity<Page<IngredientResponse>> getIngredients(
             @Parameter(description = "검색어 (이름, 설명 포함)") @RequestParam(required = false) String keyword,
-            @Parameter(description = "성분 타입 필터 (GENERAL, OTC, PRESCRIPTION, OVERSEAS)") @RequestParam(required = false) IngredientType type,
-            @PageableDefault(size = 10) Pageable pageable
+            @Parameter(description = "성분 타입 필터") @RequestParam(required = false) IngredientType type,
+            @PageableDefault(size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
     ) {
-        // 서비스 계층에서 이미 DTO 변환이 완료된 Page 객체를 반환받음
         return ResponseEntity.ok(ingredientService.getIngredients(keyword, type, pageable));
     }
 
