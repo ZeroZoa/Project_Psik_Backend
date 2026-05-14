@@ -41,7 +41,7 @@ public class IngredientController {
     public ResponseEntity<Page<IngredientResponse>> getIngredients(
             @Parameter(description = "검색어 (이름, 설명 포함)") @RequestParam(required = false) String keyword,
             @Parameter(description = "성분 타입 필터 (GENERAL, OTC, PRESCRIPTION, OVERSEAS)") @RequestParam(required = false) IngredientType type,
-            @PageableDefault Pageable pageable
+            @PageableDefault(size = 10) Pageable pageable
     ) {
         // 서비스 계층에서 이미 DTO 변환이 완료된 Page 객체를 반환받음
         return ResponseEntity.ok(ingredientService.getIngredients(keyword, type, pageable));

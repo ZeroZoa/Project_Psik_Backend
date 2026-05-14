@@ -3,6 +3,7 @@ package com.zerozoa.psik.controller;
 import com.zerozoa.psik.dto.contents.ProductDto;
 import com.zerozoa.psik.global.util.SecurityUtils;
 import com.zerozoa.psik.service.MemberProductService;
+import com.zerozoa.psik.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,6 +29,7 @@ import java.util.UUID;
 public class MemberProductController {
 
     private final MemberProductService memberProductService;
+    private final ProductService productService;
 
 
     /**
@@ -86,7 +88,7 @@ public class MemberProductController {
      * @param keyword 검색할 키워드 (null이면 전체 조회)
      * @param pageable 페이지네이션 정보 (기본값: size=20, id 오름차순)
      * @return 200 OK - 검색된 제품 목록 (페이지)
-     * @see MemberProductService#searchProducts(String, Pageable)
+     * @see ProductService#getProducts(String, Pageable)
      */
     @Operation(summary = "제품 검색", description = "이름/브랜드로 제품을 검색합니다. (다이어리 화장품 선택용)")
     @GetMapping("/search")
@@ -94,6 +96,6 @@ public class MemberProductController {
             @RequestParam(required = false) String keyword,
             @PageableDefault(size = 20, sort = "id") Pageable pageable
     ) {
-        return ResponseEntity.ok(memberProductService.searchProducts(keyword, pageable));
+        return ResponseEntity.ok(productService.getProducts(keyword, pageable));  // 위임
     }
 }

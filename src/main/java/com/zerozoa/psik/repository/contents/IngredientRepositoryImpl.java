@@ -89,7 +89,7 @@ public class IngredientRepositoryImpl implements IngredientRepositoryCustom {
                 return new OrderSpecifier(direction, pathBuilder.get(order.getProperty()));
             }
         }
-        // 정렬 조건이 없으면 효과 많은 순 + 기본적으로 ID 역순(최신순) 정렬
-        return ingredient.effects.size().desc();
+        // 정렬 조건이 없으면 사전식 정렬
+        return ingredient.name.asc();
     }
 }

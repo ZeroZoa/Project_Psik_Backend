@@ -11,8 +11,6 @@ import com.zerozoa.psik.repository.contents.ProductRepository;
 import com.zerozoa.psik.repository.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,7 +55,6 @@ public class MemberProductService {
                     .product(product)
                     .build());
         } catch (DataIntegrityViolationException e) {
-            // 동시 요청으로 UniqueConstraint 위반 시 비즈니스 예외로 변환
             throw new BusinessException(ErrorCode.ALREADY_OWNED_PRODUCT);
         }
 
@@ -86,20 +83,5 @@ public class MemberProductService {
         boolean owned = memberProductRepository.existsByMember_UuidAndProduct_Id(memberUuid, productId);
         long count = memberProductRepository.countByProduct_Id(productId);
         return Map.of("owned", owned, "count", count);
-    }
-
-    /**
-     * 제품 이름/브랜드 검색 (다이어리 화장품 선택용)
-     * @param keyword 검색어 (null 또는 빈 문자열이면 전체 조회)
-     * @param pageable 페이징 정보
-     * @return 검색된 제품 목록 (Page)
-     */
-    public Page<ProductDto> searchProducts(String keyword, Pageable pageable) {
-        if (keyword == null || keyword.isBlank()) {
-            return productRepository.findAll(pageable).map(ProductDto::from);
-        }
-        return productRepository
-                .findByNameContainingIgnoreCaseOrBrandContainingIgnoreCase(keyword, keyword, pageable)
-                .map(ProductDto::from);
     }
 }

@@ -11,13 +11,11 @@ public record ProductCreateRequest(
         @Size(max = 200)
         String name,
 
-        @NotNull(message = "제조사는 필수입니다.")
         @Size(max = 100)
-        String brand,
+        String brand,        // @NotNull 제거
 
-        @NotNull(message = "가격은 필수입니다.")
         @Min(value = 0, message = "가격은 0 이상이어야 합니다.")
-        Long price,
+        Long price,          // @NotNull 제거
 
         String description,
 
