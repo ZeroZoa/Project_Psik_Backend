@@ -24,10 +24,11 @@ public record OAuthAttributes(
     // Provider에 따라 알맞은 팩토리 메서드 호출
     public static OAuthAttributes of(Provider provider, String userNameAttributeName, Map<String, Object> attributes) {
         return switch (provider) {
-            case KAKAO -> ofKakao(userNameAttributeName, attributes);
-            case NAVER -> ofNaver(userNameAttributeName, attributes);
+            case KAKAO  -> ofKakao(userNameAttributeName, attributes);
+            case NAVER  -> ofNaver(userNameAttributeName, attributes);
             case GOOGLE -> ofGoogle(userNameAttributeName, attributes);
-            case APPLE -> ofApple(userNameAttributeName, attributes);
+            case APPLE  -> ofApple(userNameAttributeName, attributes);
+            case SYSTEM -> throw new IllegalArgumentException("SYSTEM provider는 소셜 로그인에 사용할 수 없습니다.");
         };
     }
 
