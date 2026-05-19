@@ -4,6 +4,9 @@ import com.zerozoa.psik.domain.community.Post;
 import com.zerozoa.psik.domain.community.PostLike;
 import com.zerozoa.psik.domain.member.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
@@ -22,5 +25,7 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
     void deleteAllByPost(Post post);
 
     // 회원 탈퇴 시 해당 회원의 게시글 좋아요 일괄 삭제
-    void deleteAllByMember(Member member);
+    @Modifying
+    @Query("DELETE FROM PostLike pl WHERE pl.member = :member")
+    void deleteAllByMember(@Param("member") Member member);
 }

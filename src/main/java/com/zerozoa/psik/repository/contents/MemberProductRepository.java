@@ -3,6 +3,7 @@ package com.zerozoa.psik.repository.contents;
 import com.zerozoa.psik.domain.contents.MemberProduct;
 import com.zerozoa.psik.domain.member.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -28,5 +29,7 @@ public interface MemberProductRepository extends JpaRepository<MemberProduct, Lo
     long countByProduct_Id(Long productId);
 
     // 회원 탈퇴 시 해당 회원의 보유 제품 일괄 삭제
-    void deleteAllByMember(Member member);
+    @Modifying
+    @Query("DELETE FROM MemberProduct mp WHERE mp.member = :member")
+    void deleteAllByMember(@Param("member") Member member);
 }

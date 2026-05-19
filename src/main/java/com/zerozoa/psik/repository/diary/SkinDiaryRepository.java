@@ -3,6 +3,7 @@ package com.zerozoa.psik.repository.diary;
 import com.zerozoa.psik.domain.diary.SkinDiary;
 import com.zerozoa.psik.domain.member.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -37,5 +38,14 @@ public interface SkinDiaryRepository extends JpaRepository<SkinDiary, Long> {
     List<SkinDiary> findAllByMember_UuidAndRecordDateBetween(UUID memberUuid, Instant from, Instant to);
 
     // 회원 탈퇴 시 해당 회원의 다이어리 일괄 삭제 (cascade → SkinDiaryProduct 자동 삭제)
-    void deleteAllByMember(Member member);
+    @Modifying
+    @Query("DELETE FROM SkinDiary sd WHERE sd.member = :member")
+    void deleteAllByMember(@Param("member") Member member);
+
+    // ElementCollection(skin_diary_diet)은 JPQL로 못 다루므로 native SQL 사용
+    @Modifying
+    @Query(value = "DELETE FROM skin_diary_diet WHERE skin_diary_id IN " +
+            "(SELECT skin_diary_id FROM skin_diary WHERE member_id = :memberId)",
+            nativeQuery = true)
+    void deleteDietByMemberId(@Param("memberId") Long memberId);
 }

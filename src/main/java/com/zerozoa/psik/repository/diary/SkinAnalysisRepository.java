@@ -4,6 +4,7 @@ import com.zerozoa.psik.domain.diary.SkinAnalysis;
 import com.zerozoa.psik.domain.diary.SkinDiary;
 import com.zerozoa.psik.domain.member.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -29,5 +30,7 @@ public interface SkinAnalysisRepository extends JpaRepository<SkinAnalysis, Long
 
     // 회원 탈퇴 시 해당 회원 다이어리의 분석 결과 일괄 삭제
     // SkinDiary 삭제 전 반드시 먼저 실행 (FK 제약)
-    void deleteAllBySkinDiary_Member(Member member);
+    @Modifying
+    @Query("DELETE FROM SkinAnalysis sa WHERE sa.skinDiary.member = :member")
+    void deleteAllBySkinDiary_Member(@Param("member") Member member);
 }

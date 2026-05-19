@@ -5,6 +5,7 @@ import com.zerozoa.psik.domain.community.CommentLike;
 import com.zerozoa.psik.domain.community.Post;
 import com.zerozoa.psik.domain.member.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -30,5 +31,7 @@ public interface CommentLikeRepository extends JpaRepository<CommentLike, Long> 
     Set<Long> findLikedCommentIdsByMemberAndPost(@Param("member") Member member, @Param("post") Post post);
 
     // 회원 탈퇴 시 해당 회원의 댓글 좋아요 일괄 삭제
-    void deleteAllByMember(Member member);
+    @Modifying
+    @Query("DELETE FROM CommentLike cl WHERE cl.member = :member")
+    void deleteAllByMember(@Param("member") Member member);
 }

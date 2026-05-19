@@ -12,6 +12,7 @@ import com.zerozoa.psik.repository.community.PostLikeRepository;
 import com.zerozoa.psik.repository.community.PostRepository;
 import com.zerozoa.psik.repository.contents.MemberProductRepository;
 import com.zerozoa.psik.repository.diary.SkinAnalysisRepository;
+import com.zerozoa.psik.repository.diary.SkinDiaryProductRepository;
 import com.zerozoa.psik.repository.diary.SkinDiaryRepository;
 import com.zerozoa.psik.repository.inquiry.InquiryRepository;
 import com.zerozoa.psik.repository.member.MemberRepository;
@@ -41,6 +42,7 @@ public class MemberService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final InquiryRepository inquiryRepository;
+    private final SkinDiaryProductRepository skinDiaryProductRepository;
 
     /**
      * 소셜 로그인 처리 (로그인 & 회원가입 겸용)
@@ -187,7 +189,9 @@ public class MemberService {
         // 3. 스킨 다이어리 삭제
         //    SkinAnalysis → SkinDiary 순서로 삭제 (FK 제약)
         skinAnalysisRepository.deleteAllBySkinDiary_Member(member);
-        skinDiaryRepository.deleteAllByMember(member); // cascade → SkinDiaryProduct 자동 삭제
+        skinDiaryRepository.deleteDietByMemberId(member.getId());
+        skinDiaryProductRepository.deleteAllBySkinDiary_Member(member);
+        skinDiaryRepository.deleteAllByMember(member);
 
         // 4. 커뮤니티 익명화 (고스트 유저로 교체)
         commentRepository.anonymizeByMember(member, ghost);
