@@ -28,4 +28,7 @@ public interface CommentLikeRepository extends JpaRepository<CommentLike, Long> 
     // 특정 게시글에서 회원이 좋아요한 댓글 ID 목록 한 번에 조회
     @Query("SELECT cl.comment.id FROM CommentLike cl WHERE cl.member = :member AND cl.comment.post = :post")
     Set<Long> findLikedCommentIdsByMemberAndPost(@Param("member") Member member, @Param("post") Post post);
+
+    // 회원 탈퇴 시 해당 회원의 댓글 좋아요 일괄 삭제
+    void deleteAllByMember(Member member);
 }

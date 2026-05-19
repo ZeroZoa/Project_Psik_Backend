@@ -26,4 +26,8 @@ public interface SkinAnalysisRepository extends JpaRepository<SkinAnalysis, Long
     long countTodayAnalysisByMember(@Param("member") Member member,
                                     @Param("startOfDay") Instant startOfDay,
                                     @Param("endOfDay") Instant endOfDay);
+
+    // 회원 탈퇴 시 해당 회원 다이어리의 분석 결과 일괄 삭제
+    // SkinDiary 삭제 전 반드시 먼저 실행 (FK 제약)
+    void deleteAllBySkinDiary_Member(Member member);
 }

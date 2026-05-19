@@ -6,6 +6,14 @@ import com.zerozoa.psik.dto.member.ProfileSetupRequest;
 import com.zerozoa.psik.dto.member.SkinConcernUpdateRequest;
 import com.zerozoa.psik.global.exception.BusinessException;
 import com.zerozoa.psik.global.exception.ErrorCode;
+import com.zerozoa.psik.repository.community.CommentLikeRepository;
+import com.zerozoa.psik.repository.community.CommentRepository;
+import com.zerozoa.psik.repository.community.PostLikeRepository;
+import com.zerozoa.psik.repository.community.PostRepository;
+import com.zerozoa.psik.repository.contents.MemberProductRepository;
+import com.zerozoa.psik.repository.diary.SkinAnalysisRepository;
+import com.zerozoa.psik.repository.diary.SkinDiaryRepository;
+import com.zerozoa.psik.repository.inquiry.InquiryRepository;
 import com.zerozoa.psik.repository.member.MemberRepository;
 import com.zerozoa.psik.repository.auth.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,8 +29,18 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class MemberService {
 
+    private static final UUID GHOST_UUID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+
     private final MemberRepository memberRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PostLikeRepository postLikeRepository;
+    private final CommentLikeRepository commentLikeRepository;
+    private final MemberProductRepository memberProductRepository;
+    private final SkinAnalysisRepository skinAnalysisRepository;
+    private final SkinDiaryRepository skinDiaryRepository;
+    private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
+    private final InquiryRepository inquiryRepository;
 
     /**
      * 소셜 로그인 처리 (로그인 & 회원가입 겸용)
@@ -147,20 +165,41 @@ public class MemberService {
 
     /**
      * 회원 탈퇴
-     * @param memberUuid 탈퇴할 회원의 UUID
-     * @throws BusinessException 회원이 존재하지 않을 경우 {@link ErrorCode#MEMBER_NOT_FOUND}
+     * - 커뮤니티 (Post/Comment/Inquiry): 고스트 유저로 교체하여 익명 보존
+     * - 개인 데이터 (Like/MemberProduct/SkinDiary): 완전 삭제
+     * - 회원: Hard Delete
      */
     @Transactional
     public void deleteMember(UUID memberUuid) {
-        //회원 존재 확인
         Member member = getByUuid(memberUuid);
 
-        //연관된 토큰 일괄 삭제
+        Member ghost = memberRepository.findByUuid(GHOST_UUID)
+                .orElseThrow(() -> new IllegalStateException(
+                        "[Withdraw] Ghost user not found. INSERT ghost user into DB first."));
+
+        // 1. 좋아요 삭제 (UNIQUE 제약으로 고스트 교체 불가 → 삭제)
+        commentLikeRepository.deleteAllByMember(member);
+        postLikeRepository.deleteAllByMember(member);
+
+        // 2. 보유 제품 삭제
+        memberProductRepository.deleteAllByMember(member);
+
+        // 3. 스킨 다이어리 삭제
+        //    SkinAnalysis → SkinDiary 순서로 삭제 (FK 제약)
+        skinAnalysisRepository.deleteAllBySkinDiary_Member(member);
+        skinDiaryRepository.deleteAllByMember(member); // cascade → SkinDiaryProduct 자동 삭제
+
+        // 4. 커뮤니티 익명화 (고스트 유저로 교체)
+        commentRepository.anonymizeByMember(member, ghost);
+        postRepository.anonymizeByMember(member, ghost);
+        inquiryRepository.anonymizeByMember(member, ghost);
+
+        // 5. 리프레시 토큰 삭제
         refreshTokenRepository.deleteAllByMemberUuid(memberUuid);
 
-        //회원 데이터 삭제 (Hard Delete)
+        // 6. 회원 Hard Delete
         memberRepository.delete(member);
 
-        log.info("[Withdraw] Member Deleted: uuid={}", memberUuid);
+        log.warn("[Withdraw] Member Deleted: uuid={}", memberUuid);
     }
 }

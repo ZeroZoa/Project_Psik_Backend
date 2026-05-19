@@ -1,10 +1,13 @@
 package com.zerozoa.psik.repository.inquiry;
 
 import com.zerozoa.psik.domain.inquiry.Inquiry;
+import com.zerozoa.psik.domain.member.Member;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.UUID;
 
@@ -26,4 +29,9 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
             countQuery = "SELECT COUNT(i) FROM Inquiry i"
     )
     Page<Inquiry> findAllWithAnswer(Pageable pageable);
+
+    // 회원 탈퇴 시 문의 작성자를 고스트 유저로 교체
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Inquiry i SET i.member = :ghost WHERE i.member = :member")
+    void anonymizeByMember(@Param("member") Member member, @Param("ghost") Member ghost);
 }

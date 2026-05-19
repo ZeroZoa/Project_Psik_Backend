@@ -35,4 +35,7 @@ public interface SkinDiaryRepository extends JpaRepository<SkinDiary, Long> {
 
     //특정 기간 다이어리 목록 조회 — UUID 기반 (서비스에서 Member 엔티티 없이 조회 시 사용)
     List<SkinDiary> findAllByMember_UuidAndRecordDateBetween(UUID memberUuid, Instant from, Instant to);
+
+    // 회원 탈퇴 시 해당 회원의 다이어리 일괄 삭제 (cascade → SkinDiaryProduct 자동 삭제)
+    void deleteAllByMember(Member member);
 }

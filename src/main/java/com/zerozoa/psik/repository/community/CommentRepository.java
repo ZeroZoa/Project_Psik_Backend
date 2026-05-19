@@ -6,6 +6,7 @@ import com.zerozoa.psik.domain.member.Member;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -44,5 +45,8 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     @Query("SELECT c FROM Comment c JOIN FETCH c.member WHERE c.post = :post ORDER BY c.createdAt ASC")
     List<Comment> findAllByPost(@Param("post") Post post);
 
-
+    // 회원 탈퇴 시 댓글 작성자를 고스트 유저로 교체
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Comment c SET c.member = :ghost WHERE c.member = :member")
+    void anonymizeByMember(@Param("member") Member member, @Param("ghost") Member ghost);
 }

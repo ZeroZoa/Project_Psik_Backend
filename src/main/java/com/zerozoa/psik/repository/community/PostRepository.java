@@ -5,6 +5,7 @@ import com.zerozoa.psik.domain.member.Member;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -56,4 +57,9 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     // 전체 최신순 Page
     Page<Post> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    // 회원 탈퇴 시 게시글 작성자를 고스트 유저로 교체
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Post p SET p.member = :ghost WHERE p.member = :member")
+    void anonymizeByMember(@Param("member") Member member, @Param("ghost") Member ghost);
 }

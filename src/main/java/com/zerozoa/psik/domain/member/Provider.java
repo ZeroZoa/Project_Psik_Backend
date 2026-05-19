@@ -18,7 +18,8 @@ public enum Provider {
     APPLE("애플"),
 
     GOOGLE("구글"),
-    KAKAO("카카오");
+    KAKAO("카카오"),
+    SYSTEM("시스템"); //고스트 유저 전용(고스트 유저는 탈퇴한 회원의 기록을 남기기 위함)
 
     private final String description;
 }
