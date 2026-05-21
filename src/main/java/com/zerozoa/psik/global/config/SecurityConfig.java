@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zerozoa.psik.global.exception.ErrorCode;
 import com.zerozoa.psik.global.security.JwtAuthenticationFilter;
 import com.zerozoa.psik.global.security.oauth.CustomOAuth2UserService;
+import com.zerozoa.psik.global.security.oauth.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.zerozoa.psik.global.security.oauth.OAuth2SuccessHandler;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -97,11 +98,19 @@ public class SecurityConfig {
 
                 //OAuth2 로그인 설정
                 .oauth2Login(oauth2 -> oauth2
+                        // state를 쿠키에 저장 (STATELESS 세션 문제 해결)
+                        .authorizationEndpoint(endpoint -> endpoint
+                                .authorizationRequestRepository(cookieAuthorizationRequestRepository())
+                        )
                         // 로그인 성공 후 처리할 핸들러 (JWT 발급 등)
                         .successHandler(oAuth2SuccessHandler)
+                        // 로그인 실패 시 프론트로 리다이렉트
+                        .failureHandler((request, response, exception) ->
+                                response.sendRedirect("https://psik.kr/login?error"))
                         // 로그인 성공 시 사용자 정보를 가져올 서비스 설정
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                 )
+
 
                 //인증/인가 예외 처리
                 //필터 체인에서 발생하는 에러는 GlobalExceptionHandler(ControllerAdvice)까지 도달하지 못함
@@ -178,5 +187,10 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    @Bean
+    public HttpCookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository() {
+        return new HttpCookieOAuth2AuthorizationRequestRepository();
     }
 }
