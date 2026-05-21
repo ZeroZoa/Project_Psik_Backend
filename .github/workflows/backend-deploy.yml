@@ -62,6 +62,7 @@ jobs:
             --concurrency=80 \
             --service-account=${{ steps.project.outputs.number }}-compute@developer.gserviceaccount.com \
             --add-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:psik-db \
+            --set-env-vars="SPRING_PROFILES_ACTIVE=prod" \
             --set-secrets="\
           DB_URL=DB_URL:latest,\
           DB_USERNAME=DB_USERNAME:latest,\
