@@ -105,8 +105,10 @@ public class SecurityConfig {
                         // 로그인 성공 후 처리할 핸들러 (JWT 발급 등)
                         .successHandler(oAuth2SuccessHandler)
                         // 로그인 실패 시 프론트로 리다이렉트
-                        .failureHandler((request, response, exception) ->
-                                response.sendRedirect("https://psik.kr/login?error"))
+                        .failureHandler((request, response, exception) -> {
+                            log.error("[OAuth2 Failure] {}: {}", exception.getClass().getSimpleName(), exception.getMessage());
+                            response.sendRedirect("https://psik.kr/login?error");
+                        })
                         // 로그인 성공 시 사용자 정보를 가져올 서비스 설정
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                 )
