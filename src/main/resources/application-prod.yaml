@@ -1,39 +1,32 @@
-# ============================================
-# 운영(Production) 프로필 설정
-# 사용법: --spring.profiles.active=prod
-# ============================================
-
 spring:
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            redirect-uri: https://psik.kr/login/oauth2/code/google
-          kakao:
-            redirect-uri: https://psik.kr/login/oauth2/code/kakao
-
   jpa:
     hibernate:
-      # 최초 배포 시 테이블 자동 생성 — 이후 validate로 변경 예정
       ddl-auto: update
     properties:
       hibernate:
         format_sql: false
         show_sql: false
 
-  # 최초 배포 시 Flyway 비활성화 — 테이블 생성 후 활성화 예정
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
     baseline-version: 0
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            redirect-uri: https://api.psik.kr/login/oauth2/code/google
+          kakao:
+            redirect-uri: https://api.psik.kr/login/oauth2/code/kakao
+
 app:
   file:
     base-url: ${APP_FILE_BASE_URL}
   cookie:
-    secure: true  # HTTPS 환경
+    secure: true
   oauth2:
     success-redirect-uri: ${OAUTH2_SUCCESS_REDIRECT_URI}
     profile-setup-redirect-uri: ${OAUTH2_PROFILE_SETUP_REDIRECT_URI}
@@ -41,14 +34,12 @@ app:
 gcs:
   bucket-name: ${GCS_BUCKET_NAME}
 
-# 운영 로그 레벨 (WARN 이상만)
 logging:
   level:
     root: WARN
     com.zerozoa.psik: INFO
     org.hibernate.SQL: WARN
 
-# Swagger UI 운영 비활성화
 springdoc:
   swagger-ui:
     enabled: false
