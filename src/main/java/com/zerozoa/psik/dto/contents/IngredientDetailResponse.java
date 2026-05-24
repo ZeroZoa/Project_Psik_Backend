@@ -31,7 +31,7 @@ public record IngredientDetailResponse(
                 .effects(new ArrayList<>(ingredient.getEffects()))
                 .cautions(new ArrayList<>(ingredient.getCautions()))
                 .skinConcerns(ingredient.getSkinConcerns().stream()
-                        .map(SkinConcern::getDescription)
+                        .map(Enum::name)
                         .toList())
                 .products(ingredient.getProducts().stream()
                         .map(ProductDto::from)
