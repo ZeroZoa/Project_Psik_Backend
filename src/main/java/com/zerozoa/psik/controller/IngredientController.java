@@ -3,7 +3,6 @@ package com.zerozoa.psik.controller;
 import com.zerozoa.psik.domain.contents.IngredientType;
 import com.zerozoa.psik.domain.member.SkinConcern;
 import com.zerozoa.psik.dto.contents.IngredientDetailResponse;
-import com.zerozoa.psik.dto.contents.IngredientResponse;
 import com.zerozoa.psik.dto.contents.RecommendedGroupResponse;
 import com.zerozoa.psik.service.IngredientService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,10 +38,10 @@ public class IngredientController {
      */
     @Operation(summary = "성분 목록 조회", description = "성분 리스트를 조회")
     @GetMapping
-    public ResponseEntity<Page<IngredientResponse>> getIngredients(
-            @Parameter(description = "검색어 (이름, 설명 포함)") @RequestParam(required = false) String keyword,
-            @Parameter(description = "성분 타입 필터") @RequestParam(required = false) IngredientType type,
-            @PageableDefault(size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
+    public ResponseEntity<Page<IngredientDetailResponse>> getIngredients(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) IngredientType type,
+            @PageableDefault(sort = "name", direction = Sort.Direction.ASC) Pageable pageable
     ) {
         return ResponseEntity.ok(ingredientService.getIngredients(keyword, type, pageable));
     }

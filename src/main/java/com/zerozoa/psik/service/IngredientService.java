@@ -31,11 +31,9 @@ public class IngredientService {
      * @param pageable 페이징 정보 (페이지 번호, 사이즈, 정렬)
      * @return 화면에 뿌려질 DTO 페이징 객체
      */
-    public Page<IngredientResponse> getIngredients(String keyword, IngredientType type, Pageable pageable) {
-        // QueryDSL로 동적 쿼리 실행
+    public Page<IngredientDetailResponse> getIngredients(String keyword, IngredientType type, Pageable pageable) {
         Page<Ingredient> ingredients = ingredientRepository.search(keyword, type, pageable);
-        // Entity -> DTO 변환
-        return ingredients.map(IngredientResponse::from);
+        return ingredients.map(IngredientDetailResponse::from);
     }
 
     /**

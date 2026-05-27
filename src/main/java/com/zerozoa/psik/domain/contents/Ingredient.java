@@ -72,6 +72,7 @@ public class Ingredient {
     private List<String> cautions = new ArrayList<>();
 
     /** 연관 피부 고민 목록 — 성분 추천 필터링에서 SkinConcern.relatedTags와 매칭에 사용 */
+    @BatchSize(size = 100)
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "ingredient_skin_concerns",
             joinColumns = @JoinColumn(name = "ingredient_id"))
