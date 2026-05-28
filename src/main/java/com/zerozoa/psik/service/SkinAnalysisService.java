@@ -12,12 +12,12 @@ import com.zerozoa.psik.repository.diary.SkinAnalysisRepository;
 import com.zerozoa.psik.repository.diary.SkinDiaryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.coobird.thumbnailator.Thumbnails;
+import com.sksamuel.scrimage.ImmutableImage;
+import com.sksamuel.scrimage.nio.JpegWriter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -91,12 +91,10 @@ public class SkinAnalysisService {
 
         // Gemini API 호출
         try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            Thumbnails.of(image.getInputStream())
-                    .size(512, 512)
-                    .outputFormat("jpg")
-                    .toOutputStream(baos);
-            byte[] imageBytes = baos.toByteArray();
+            byte[] imageBytes = ImmutableImage.loader()
+                    .fromStream(image.getInputStream())
+                    .bound(512, 512)
+                    .bytes(new JpegWriter().withCompression(85));
             String mimeType = "image/jpeg";
             String resultJson = geminiService.analyzeSkin(imageBytes, mimeType);
 
@@ -120,8 +118,6 @@ public class SkinAnalysisService {
 
             log.info("[SkinAnalysis] 분석 완료 - diaryId={}", diaryId);
 
-        } catch (BusinessException e) {
-            throw e; // BusinessException은 그대로 재던짐
         } catch (IOException e) {
             skinAnalysis.failAnalysis();
             fileStorageService.delete(imageUrl); // 추가

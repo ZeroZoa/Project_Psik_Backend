@@ -1,7 +1,8 @@
 package com.zerozoa.psik.service;
 
 import lombok.extern.slf4j.Slf4j;
-import net.coobird.thumbnailator.Thumbnails;
+import com.sksamuel.scrimage.ImmutableImage;
+import com.sksamuel.scrimage.webp.WebpWriter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -91,17 +92,17 @@ public class LocalFileStorageService implements FileStorageService {
         }
 
         // UUID 기반 파일명 생성 (원본 확장자 유지)
-        String storedFilename = UUID.randomUUID() + extension;
-
+        String storedFilename = UUID.randomUUID() + ".webp";
         Path targetDir = uploadRootPath.resolve(subDirectory);
+
         try {
             Files.createDirectories(targetDir);
             Path targetPath = targetDir.resolve(storedFilename);
 
-            Thumbnails.of(file.getInputStream())
-                    .size(1280, 1280)
-                    .outputQuality(0.8)
-                    .toFile(targetPath.toFile());
+            ImmutableImage.loader()
+                    .fromStream(file.getInputStream())
+                    .bound(600, 600)
+                    .output(WebpWriter.DEFAULT.withQ(85), targetPath.toFile());
 
             return baseUrl + "/uploads/" + subDirectory + "/" + storedFilename;
         } catch (IOException e) {

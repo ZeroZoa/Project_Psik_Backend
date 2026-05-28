@@ -7,13 +7,13 @@ import com.zerozoa.psik.global.exception.BusinessException;
 import com.zerozoa.psik.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.coobird.thumbnailator.Thumbnails;
+import com.sksamuel.scrimage.ImmutableImage;
+import com.sksamuel.scrimage.webp.WebpWriter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
@@ -22,7 +22,7 @@ import java.util.UUID;
 /**
  * Google Cloud Storage 기반 이미지 저장 서비스 (운영 환경 전용)
  * - Cloud Run Workload Identity로 자동 인증 (별도 키 불필요)
- * - 이미지 저장 시 Thumbnailator로 1280x1280 압축 후 업로드
+ * - 이미지 저장 시 Scrimage로 600x600 WebP 변환 후 업로드
  * - @Profile("prod") — 로컬은 LocalFileStorageService 사용
  */
 @Slf4j
@@ -51,25 +51,18 @@ public class GcsFileStorageService implements FileStorageService {
      */
     @Override
     public String store(MultipartFile file, String subDirectory) {
-        String extension = extractExtension(file);
-        String objectName = subDirectory + "/" + UUID.randomUUID() + extension;
+        extractExtension(file); // 입력 포맷 검증 (허용되지 않는 확장자 차단)
+        String objectName = subDirectory + "/" + UUID.randomUUID() + ".webp";
 
         try {
-            // Thumbnailator로 1280x1280 압축
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            String outputFormat = extension.equals(".jpg") || extension.equals(".jpeg") ? "jpg" : extension.replace(".", "");
-            Thumbnails.of(file.getInputStream())
-                    .size(1280, 1280)
-                    .outputQuality(0.8)
-                    .outputFormat(outputFormat)
-                    .toOutputStream(baos);
+            byte[] imageBytes = ImmutableImage.loader()
+                    .fromStream(file.getInputStream())
+                    .bound(600, 600)
+                    .bytes(WebpWriter.DEFAULT.withQ(85));
 
-            byte[] imageBytes = baos.toByteArray();
-
-            // GCS 업로드
             BlobId blobId = BlobId.of(bucketName, objectName);
             BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
-                    .setContentType(resolveContentType(extension))
+                    .setContentType("image/webp")
                     .build();
 
             // google-cloud-storage 2.x API
@@ -149,19 +142,5 @@ public class GcsFileStorageService implements FileStorageService {
         }
 
         return extension;
-    }
-
-    /**
-     * 확장자 → ContentType 변환
-     */
-    private String resolveContentType(String extension) {
-        return switch (extension) {
-            case ".jpg", ".jpeg" -> "image/jpeg";
-            case ".png"          -> "image/png";
-            case ".webp"         -> "image/webp";
-            case ".gif"          -> "image/gif";
-            case ".bmp"          -> "image/bmp";
-            default              -> "image/jpeg";
-        };
     }
 }
