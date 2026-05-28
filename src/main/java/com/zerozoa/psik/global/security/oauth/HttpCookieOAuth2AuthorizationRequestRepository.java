@@ -1,11 +1,12 @@
 package com.zerozoa.psik.global.security.oauth;
 
-import com.nimbusds.oauth2.sdk.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
-import org.springframework.util.SerializationUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.security.jackson2.SecurityJackson2Modules;
+import org.springframework.security.oauth2.client.jackson2.OAuth2ClientJackson2Module;
 
 import java.util.Base64;
 
@@ -14,6 +15,14 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
 
     public static final String OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
     private static final int COOKIE_EXPIRE_SECONDS = 180;
+    private static final ObjectMapper objectMapper;
+
+    static {
+        objectMapper = new ObjectMapper();
+        ClassLoader loader = HttpCookieOAuth2AuthorizationRequestRepository.class.getClassLoader();
+        objectMapper.registerModules(SecurityJackson2Modules.getModules(loader));
+        objectMapper.registerModule(new OAuth2ClientJackson2Module());
+    }
 
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
@@ -45,12 +54,21 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
     }
 
     private String serialize(OAuth2AuthorizationRequest authorizationRequest) {
-        return Base64.getUrlEncoder().encodeToString(
-                SerializationUtils.serialize(authorizationRequest));
+        try {
+            return Base64.getUrlEncoder().encodeToString(
+                    objectMapper.writeValueAsBytes(authorizationRequest));
+        } catch (Exception e) {
+            throw new IllegalStateException("OAuth2AuthorizationRequest 직렬화 실패", e);
+        }
     }
 
     private OAuth2AuthorizationRequest deserialize(String value) {
-        return (OAuth2AuthorizationRequest) SerializationUtils.deserialize(
-                Base64.getUrlDecoder().decode(value));
+        try {
+            return objectMapper.readValue(
+                    Base64.getUrlDecoder().decode(value),
+                    OAuth2AuthorizationRequest.class);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
