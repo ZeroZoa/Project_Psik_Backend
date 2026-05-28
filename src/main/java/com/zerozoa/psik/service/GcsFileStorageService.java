@@ -7,13 +7,13 @@ import com.zerozoa.psik.global.exception.BusinessException;
 import com.zerozoa.psik.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.coobird.thumbnailator.Thumbnails;
+import com.sksamuel.scrimage.ImmutableImage;
+import com.sksamuel.scrimage.webp.WebpWriter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
@@ -52,24 +52,17 @@ public class GcsFileStorageService implements FileStorageService {
     @Override
     public String store(MultipartFile file, String subDirectory) {
         String extension = extractExtension(file);
-        String objectName = subDirectory + "/" + UUID.randomUUID() + extension;
+        String objectName = subDirectory + "/" + UUID.randomUUID() + ".webp";
 
         try {
-            // Thumbnailator로 1280x1280 압축
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            String outputFormat = extension.equals(".jpg") || extension.equals(".jpeg") ? "jpg" : extension.replace(".", "");
-            Thumbnails.of(file.getInputStream())
-                    .size(1280, 1280)
-                    .outputQuality(0.8)
-                    .outputFormat(outputFormat)
-                    .toOutputStream(baos);
+            byte[] imageBytes = ImmutableImage.loader()
+                    .fromStream(file.getInputStream())
+                    .bound(600, 600)
+                    .bytes(WebpWriter.DEFAULT.withQ(85));
 
-            byte[] imageBytes = baos.toByteArray();
-
-            // GCS 업로드
             BlobId blobId = BlobId.of(bucketName, objectName);
             BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
-                    .setContentType(resolveContentType(extension))
+                    .setContentType("image/webp")
                     .build();
 
             // google-cloud-storage 2.x API
