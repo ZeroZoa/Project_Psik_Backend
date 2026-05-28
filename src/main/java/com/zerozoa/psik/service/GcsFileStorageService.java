@@ -22,7 +22,7 @@ import java.util.UUID;
 /**
  * Google Cloud Storage 기반 이미지 저장 서비스 (운영 환경 전용)
  * - Cloud Run Workload Identity로 자동 인증 (별도 키 불필요)
- * - 이미지 저장 시 Thumbnailator로 1280x1280 압축 후 업로드
+ * - 이미지 저장 시 Scrimage로 600x600 WebP 변환 후 업로드
  * - @Profile("prod") — 로컬은 LocalFileStorageService 사용
  */
 @Slf4j
@@ -51,7 +51,7 @@ public class GcsFileStorageService implements FileStorageService {
      */
     @Override
     public String store(MultipartFile file, String subDirectory) {
-        String extension = extractExtension(file);
+        extractExtension(file); // 입력 포맷 검증 (허용되지 않는 확장자 차단)
         String objectName = subDirectory + "/" + UUID.randomUUID() + ".webp";
 
         try {
@@ -142,19 +142,5 @@ public class GcsFileStorageService implements FileStorageService {
         }
 
         return extension;
-    }
-
-    /**
-     * 확장자 → ContentType 변환
-     */
-    private String resolveContentType(String extension) {
-        return switch (extension) {
-            case ".jpg", ".jpeg" -> "image/jpeg";
-            case ".png"          -> "image/png";
-            case ".webp"         -> "image/webp";
-            case ".gif"          -> "image/gif";
-            case ".bmp"          -> "image/bmp";
-            default              -> "image/jpeg";
-        };
     }
 }
