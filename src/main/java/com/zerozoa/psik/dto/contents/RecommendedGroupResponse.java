@@ -5,5 +5,5 @@ import java.util.List;
 public record RecommendedGroupResponse(
         String concern,
         String concernDisplayName,
-        List<IngredientResponse> ingredients
+        List<IngredientDetailResponse> ingredients
 ) {}
