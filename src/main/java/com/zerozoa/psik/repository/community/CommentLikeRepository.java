@@ -34,4 +34,9 @@ public interface CommentLikeRepository extends JpaRepository<CommentLike, Long> 
     @Modifying
     @Query("DELETE FROM CommentLike cl WHERE cl.member = :member")
     void deleteAllByMember(@Param("member") Member member);
+
+    // 게시글 삭제 시 해당 게시글의 모든 댓글 좋아요 일괄 삭제
+    @Modifying
+    @Query("DELETE FROM CommentLike cl WHERE cl.comment.post = :post")
+    void deleteAllByPost(@Param("post") Post post);
 }

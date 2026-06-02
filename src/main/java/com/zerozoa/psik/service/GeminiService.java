@@ -66,9 +66,9 @@ public class GeminiService {
                 ),
                 "generationConfig", Map.of(
                         "temperature", 0.1,
-                        "maxOutputTokens", 2048,    // 512 → 2048으로 증가
+                        "maxOutputTokens", 2048,
                         "thinkingConfig", Map.of(
-                                "thinkingBudget", 0     // thinking 비활성화 (토큰 절약)
+                                "thinkingBudget", 0 // thinking 비활성화
                         )
                 )
 
@@ -115,7 +115,6 @@ public class GeminiService {
                     .path("text")
                     .asText();
 
-            // gemini-2.5 등 일부 모델이 ```json ... ``` 마크다운으로 감싸서 응답하는 경우 제거
             text = text.trim();
             if (text.startsWith("```")) {
                 text = text.replaceAll("^```[a-zA-Z]*\\n?", "").replaceAll("```$", "").trim();

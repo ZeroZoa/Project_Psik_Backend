@@ -27,7 +27,7 @@ public class RefreshToken {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 토큰 소유 회원의 UUID (외부 식별자) */
+    /** 외부 PK - 토큰 소유 회원의 UUID*/
     @Column(name = "member_uuid", columnDefinition = "uuid", nullable = false)
     private UUID memberUuid;
 

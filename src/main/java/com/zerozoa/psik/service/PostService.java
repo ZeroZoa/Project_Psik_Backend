@@ -1,6 +1,5 @@
 package com.zerozoa.psik.service;
 
-import com.zerozoa.psik.domain.community.Comment;
 import com.zerozoa.psik.domain.community.Post;
 import com.zerozoa.psik.domain.community.PostImage;
 import com.zerozoa.psik.domain.community.PostLike;
@@ -211,15 +210,12 @@ public class PostService {
         List<String> imageUrls = post.getImages().stream()
                 .map(PostImage::getImageUrl)
                 .toList();
+
+        //이미지 삭제
         fileStorageService.deleteAll(imageUrls);
 
-        List<Comment> rootComments = commentRepository.findRootCommentsByPost(post);
-
-        for (Comment root : rootComments) {
-            root.getChildren().forEach(commentLikeRepository::deleteAllByComment);
-            commentLikeRepository.deleteAllByComment(root);
-        }
-
+        //Post관련 삭제
+        commentLikeRepository.deleteAllByPost(post);
         commentRepository.deleteAllByPost(post);
         postLikeRepository.deleteAllByPost(post);
         postRepository.delete(post);
