@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -39,4 +40,13 @@ public interface CommentLikeRepository extends JpaRepository<CommentLike, Long> 
     @Modifying
     @Query("DELETE FROM CommentLike cl WHERE cl.comment.post = :post")
     void deleteAllByPost(@Param("post") Post post);
+
+    // 댓글 삭제 시 루트 댓글 + 대댓글의 좋아요 일괄 삭제
+    @Modifying
+    @Query("DELETE FROM CommentLike cl WHERE cl.comment = :comment OR cl.comment.parent = :comment")
+    void deleteAllByCommentOrChildren(@Param("comment") Comment comment);
+
+    // 내 댓글 목록에서 좋아요한 댓글 ID 한 번에 조회
+    @Query("SELECT cl.comment.id FROM CommentLike cl WHERE cl.member = :member AND cl.comment.id IN :commentIds")
+    Set<Long> findLikedCommentIdsByMemberAndIds(@Param("member") Member member, @Param("commentIds") List<Long> commentIds);
 }

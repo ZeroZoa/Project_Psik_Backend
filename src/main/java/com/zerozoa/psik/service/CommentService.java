@@ -162,19 +162,9 @@ public class CommentService {
         //삭제될 댓글 수 계산 (본인 + 대댓글)
         int deleteCount = 1 + comment.getChildren().size();
 
-        //댓글 좋아요 삭제
-        commentLikeRepository.deleteAllByComment(comment);
-        // 대댓글 좋아요도 삭제
-        for (Comment child : comment.getChildren()) {
-            commentLikeRepository.deleteAllByComment(child);
-        }
-
+        commentLikeRepository.deleteAllByCommentOrChildren(comment);
         commentRepository.delete(comment);
-
-        // 게시글 댓글 카운트 감소
-        for (int i = 0; i < deleteCount; i++) {
-            post.decreaseCommentCount();
-        }
+        post.decreaseCommentCount(deleteCount);
     }
 
     // ───────────────────── 마이페이지 ─────────────────────
@@ -189,12 +179,17 @@ public class CommentService {
     public Page<CommentResponse> getMyComments(UUID memberUuid, Pageable pageable) {
         Member member = findMemberByUuid(memberUuid);
 
-        return commentRepository.findAllByMemberOrderByCreatedAtDesc(member, pageable)
-                .map(comment -> {
-                    boolean likedByMe = commentLikeRepository
-                            .existsByCommentAndMember(comment, member);
-                    return CommentResponse.from(comment, likedByMe);
-                });
+        Page<Comment> comments = commentRepository.findAllByMemberOrderByCreatedAtDesc(member, pageable);
+
+        List<Long> commentIds = comments.stream()
+                .map(Comment::getId)
+                .toList();
+
+        Set<Long> likedIds = commentIds.isEmpty()
+                ? Set.of()
+                : commentLikeRepository.findLikedCommentIdsByMemberAndIds(member, commentIds);
+
+        return comments.map(comment -> CommentResponse.from(comment, likedIds.contains(comment.getId())));
     }
 
 
