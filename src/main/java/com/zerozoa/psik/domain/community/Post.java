@@ -102,6 +102,11 @@ public class Post extends BaseTimeEntity {
         if (this.commentCount > 0) this.commentCount--;
     }
 
+    /** 댓글 수 N개 일괄 감소 (댓글 삭제 시 루트+대댓글 한 번에 처리) */
+    public void decreaseCommentCount(int count) {
+        this.commentCount = Math.max(0, this.commentCount - count);
+    }
+
     public void increaseViewCount() { this.viewCount++; }
 
     /** 소유자 검증 — Service에서 수정·삭제 권한 확인 시 UUID로 비교 */
