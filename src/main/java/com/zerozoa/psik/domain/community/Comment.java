@@ -20,7 +20,7 @@ import java.util.List;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "comment", indexes = {
-        @Index(name = "idx_comment_post", columnList = "post_id"),    // 게시글별 댓글 조회
+        @Index(name = "idx_comment_post", columnList = "post_id"), // 게시글별 댓글 조회
         @Index(name = "idx_comment_parent", columnList = "parent_id") // 대댓글 조회
 })
 public class Comment extends BaseTimeEntity {
