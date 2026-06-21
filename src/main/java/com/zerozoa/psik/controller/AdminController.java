@@ -121,6 +121,18 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * 전체 성분 임베딩 일괄 생성 (관리자 전용)
+     * 최초 배포 시 또는 임베딩 모델 변경 시 1회 실행
+     */
+    @Operation(summary = "전체 성분 임베딩 생성")
+    @PostMapping("/ingredients/embed-all")
+    public ResponseEntity<Map<String, String>> embedAll() {
+        log.info("[Admin] 전체 임베딩 요청");
+        String result = adminService.embedAll();
+        return ResponseEntity.ok(Map.of("result", result));
+    }
+
     // ──────────────── Product ────────────────
 
     /**

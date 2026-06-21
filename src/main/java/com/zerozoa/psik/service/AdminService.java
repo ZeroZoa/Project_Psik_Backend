@@ -19,6 +19,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -27,6 +29,7 @@ public class AdminService {
 
     private final IngredientRepository ingredientRepository;
     private final ProductRepository productRepository;
+    private final EmbeddingService embeddingService;
 
     // ───────────────────── Ingredient  ─────────────────────
 
@@ -52,6 +55,8 @@ public class AdminService {
         request.skinConcerns().forEach(ingredient::addSkinConcern);
 
         Ingredient saved = ingredientRepository.save(ingredient);
+
+        updateEmbedding(ingredient);
         log.info("[Admin] 성분 생성 완료 - id={}, name={}", saved.getId(), saved.getName());
         return IngredientDetailResponse.from(saved);
     }
@@ -88,6 +93,7 @@ public class AdminService {
         ingredient.clearSkinConcerns();
         request.skinConcerns().forEach(ingredient::addSkinConcern);
 
+        updateEmbedding(ingredient);
         log.info("[Admin] 성분 수정 완료 - id={}", ingredientId);
         return IngredientDetailResponse.from(ingredient);
     }
@@ -200,6 +206,49 @@ public class AdminService {
         product.getIngredients().forEach(i -> i.getProducts().remove(product));
         productRepository.delete(product);
         log.info("[Admin] 제품 삭제 완료 - id={}", productId);
+    }
+
+    // ───────────────────── 임베딩 ─────────────────────
+
+    /**
+     * 기존 성분 전체 임베딩 일괄 생성 — 최초 배포 시 또는 임베딩 모델 변경 시 1회 실행
+     */
+    @Transactional
+    public String embedAll() {
+        List<Ingredient> all = ingredientRepository.findAll();
+        int success = 0;
+
+        for (Ingredient ingredient : all) {
+            try {
+                String text = embeddingService.buildIngredientText(ingredient);
+                ingredient.updateEmbedding(embeddingService.embed(text));
+                success++;
+                Thread.sleep(150);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception e) {
+                log.warn("[Admin] 임베딩 실패 — id={}, name={}", ingredient.getId(), ingredient.getName());
+            }
+        }
+
+        log.info("[Admin] 전체 임베딩 완료 — {}/{}", success, all.size());
+        return "완료: %d/%d".formatted(success, all.size());
+    }
+
+    /**
+     * 성분 임베딩 생성 후 엔티티에 저장
+     * 임베딩 API 실패 시 예외를 삼켜 성분 등록/수정 트랜잭션이 롤백되지 않도록 처리
+     * 실패한 성분은 /api/admin/ingredients/embed-all 로 재실행
+     */
+    private void updateEmbedding(Ingredient ingredient) {
+        try {
+            String text = embeddingService.buildIngredientText(ingredient);
+            ingredient.updateEmbedding(embeddingService.embed(text));
+        } catch (Exception e) {
+            log.warn("[Admin] 임베딩 생성 실패 — id={}, name={} | embed-all로 재실행 가능",
+                    ingredient.getId(), ingredient.getName());
+        }
     }
 
     // ───────────────────── 내부 헬퍼 ─────────────────────
