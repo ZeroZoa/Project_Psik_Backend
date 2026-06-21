@@ -60,8 +60,9 @@ public class EmbeddingService {
                 : text;
 
         Map<String, Object> requestBody = Map.of(
-                "model", "models/text-embedding-004",
-                "content", Map.of("parts", List.of(Map.of("text", truncated)))
+                "model", "models/gemini-embedding-2",
+                "content", Map.of("parts", List.of(Map.of("text", truncated))),
+                "outputDimensionality", EMBEDDING_DIM
         );
 
         log.debug("[Embedding] 요청 — 텍스트 길이: {}자", truncated.length());
