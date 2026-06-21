@@ -111,4 +111,4 @@ gemini:
   api:
     key: ${GEMINI_API_KEY}
     url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent
-    embedding-url: https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent
+    embedding-url: https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent
