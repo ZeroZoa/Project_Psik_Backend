@@ -3,7 +3,7 @@
 services:
   # 메인 데이터베이스 (PostgreSQL)
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: psik-db
     environment:
       POSTGRES_DB: psik_postgres_db

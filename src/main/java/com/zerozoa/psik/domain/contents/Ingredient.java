@@ -93,6 +93,12 @@ public class Ingredient {
     )
     private Set<Product> products = new HashSet<>();
 
+    /**
+     * vector(768)타입으로 컬럼 지정
+     */
+    @Column(columnDefinition = "vector(768)")
+    private String embedding;
+
     @Builder
     public Ingredient(String name, IngredientType type, String description, String effectSummary) {
         this.name = name;
@@ -132,4 +138,8 @@ public class Ingredient {
     public void clearEffects() { this.effects.clear(); }
 
     public void clearCautions() { this.cautions.clear(); }
+
+    public void updateEmbedding(String embedding) {
+        this.embedding = embedding;
+    }
 }

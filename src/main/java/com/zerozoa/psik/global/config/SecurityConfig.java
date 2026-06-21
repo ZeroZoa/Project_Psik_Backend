@@ -91,6 +91,9 @@ public class SecurityConfig {
                         //스킨 다이어리는 전체 인증 필요
                         .requestMatchers("/api/diaries/**").authenticated()
 
+                        //챗봇은 인증 필요
+                        .requestMatchers("/api/chat/**").authenticated()
+
                         // 그 외 요청
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated()
