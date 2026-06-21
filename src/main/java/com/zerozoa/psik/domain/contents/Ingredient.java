@@ -8,6 +8,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.ColumnTransformer;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -97,6 +98,7 @@ public class Ingredient {
      * vector(768)타입으로 컬럼 지정
      */
     @Column(columnDefinition = "vector(768)")
+    @ColumnTransformer(write = "CAST(? AS vector)")
     private String embedding;
 
     @Builder
