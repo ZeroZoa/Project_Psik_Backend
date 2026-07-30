@@ -101,17 +101,20 @@ public class EmbeddingService {
      * [품질 원칙] 임베딩 텍스트가 풍부할수록 유사도 검색 정확도가 높아짐.
      * 효과 태그, 주의사항, 피부 고민까지 포함해야
      * "레티놀 자극성 있어?", "건성 피부에 뭐가 좋아?" 같은 질문도 정확히 검색됨.
+     * 관련 제품 목록을 포함해 "어떤 제품에 나이아신아마이드 들어있어?" 같은
+     * 제품 중심 질문에도 대응 가능.
      */
     public String buildIngredientText(Ingredient ingredient) {
         return """
-                성분명: %s
-                유형: %s
-                설명: %s
-                효과 요약: %s
-                효과 태그: %s
-                주의사항: %s
-                관련 피부 고민: %s
-                """.formatted(
+            성분명: %s
+            유형: %s
+            설명: %s
+            효과 요약: %s
+            효과 태그: %s
+            주의사항: %s
+            관련 피부 고민: %s
+            관련 제품: %s
+            """.formatted(
                 ingredient.getName(),
                 ingredient.getType() != null ? ingredient.getType().name() : "",
                 nullSafe(ingredient.getDescription()),
@@ -120,6 +123,9 @@ public class EmbeddingService {
                 String.join(", ", ingredient.getCautions()),
                 ingredient.getSkinConcerns().stream()
                         .map(Enum::name)
+                        .collect(Collectors.joining(", ")),
+                ingredient.getProducts().stream()
+                        .map(p -> p.getName() + " (" + p.getBrand() + ")")
                         .collect(Collectors.joining(", "))
         );
     }
