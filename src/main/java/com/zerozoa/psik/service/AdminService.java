@@ -220,7 +220,7 @@ public class AdminService {
 
         for (Ingredient ingredient : all) {
             try {
-                String text = embeddingService.buildIngredientText(ingredient);
+                String text = ingredient.toEmbeddingText();
                 ingredient.updateEmbedding(embeddingService.embed(text));
                 success++;
                 Thread.sleep(150);
@@ -243,7 +243,7 @@ public class AdminService {
      */
     private void updateEmbedding(Ingredient ingredient) {
         try {
-            String text = embeddingService.buildIngredientText(ingredient);
+            String text = ingredient.toEmbeddingText();
             ingredient.updateEmbedding(embeddingService.embed(text));
         } catch (Exception e) {
             log.warn("[Admin] 임베딩 생성 실패 — id={}, name={} | embed-all로 재실행 가능",

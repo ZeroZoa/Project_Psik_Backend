@@ -2,7 +2,6 @@ package com.zerozoa.psik.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zerozoa.psik.domain.contents.Ingredient;
 import com.zerozoa.psik.global.exception.BusinessException;
 import com.zerozoa.psik.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +13,6 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -39,7 +37,6 @@ public class EmbeddingService {
 
     /**
      * 텍스트를 벡터로 변환 (Gemini text-embedding-004)
-     *
      * [RAG 개념] 임베딩(Embedding)이란 텍스트의 의미를 숫자 배열로 압축한 것.
      * "히알루론산은 보습에 좋다" → [0.12, -0.33, 0.87, ...] (768개 float)
      * 의미가 비슷한 문장일수록 배열 값이 유사해짐.
@@ -96,43 +93,7 @@ public class EmbeddingService {
     }
 
     /**
-     * 성분 엔티티의 모든 필드를 결합해 임베딩용 텍스트 생성.
-     *
-     * [품질 원칙] 임베딩 텍스트가 풍부할수록 유사도 검색 정확도가 높아짐.
-     * 효과 태그, 주의사항, 피부 고민까지 포함해야
-     * "레티놀 자극성 있어?", "건성 피부에 뭐가 좋아?" 같은 질문도 정확히 검색됨.
-     * 관련 제품 목록을 포함해 "어떤 제품에 나이아신아마이드 들어있어?" 같은
-     * 제품 중심 질문에도 대응 가능.
-     */
-    public String buildIngredientText(Ingredient ingredient) {
-        return """
-            성분명: %s
-            유형: %s
-            설명: %s
-            효과 요약: %s
-            효과 태그: %s
-            주의사항: %s
-            관련 피부 고민: %s
-            관련 제품: %s
-            """.formatted(
-                ingredient.getName(),
-                ingredient.getType() != null ? ingredient.getType().name() : "",
-                nullSafe(ingredient.getDescription()),
-                nullSafe(ingredient.getEffectSummary()),
-                String.join(", ", ingredient.getEffects()),
-                String.join(", ", ingredient.getCautions()),
-                ingredient.getSkinConcerns().stream()
-                        .map(Enum::name)
-                        .collect(Collectors.joining(", ")),
-                ingredient.getProducts().stream()
-                        .map(p -> p.getName() + " (" + p.getBrand() + ")")
-                        .collect(Collectors.joining(", "))
-        );
-    }
-
-    /**
      * Gemini 임베딩 응답 JSON에서 float[] 벡터 추출.
-     *
      * 응답 구조: { "embedding": { "values": [0.1, -0.3, ...] } }
      *
      * 차원 검증을 하는 이유: 모델명 오타나 API 버전 변경으로
@@ -179,9 +140,5 @@ public class EmbeddingService {
             sb.append(vector[i]);
         }
         return sb.append("]").toString();
-    }
-
-    private String nullSafe(String value) {
-        return value != null ? value : "";
     }
 }
