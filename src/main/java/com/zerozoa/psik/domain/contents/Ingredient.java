@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 
 /**
@@ -107,6 +108,40 @@ public class Ingredient {
         this.type = type;
         this.description = description;
         this.effectSummary = effectSummary;
+    }
+
+    /**
+     * 성분 속성과 연관 제품 정보를 임베딩용 텍스트로 변환
+     */
+    public String toEmbeddingText() {
+        return """
+        성분명: %s
+        유형: %s
+        설명: %s
+        효과 요약: %s
+        효과 태그: %s
+        주의사항: %s
+        관련 피부 고민: %s
+        관련 제품: %s
+        """.formatted(
+                this.name,
+                this.type != null ? this.type.name() : "",
+                nullSafe(this.description),
+                nullSafe(this.effectSummary),
+                String.join(", ", this.effects),
+                String.join(", ", this.cautions),
+                this.skinConcerns.stream().map(Enum::name).collect(Collectors.joining(", ")),
+                this.products.stream()
+                        .map(p -> p.getName() + " (" + p.getBrand() + ")")
+                        .collect(Collectors.joining(", "))
+        );
+    }
+
+    /**
+     * 성분 속성과 연관 제품 정보를 임베딩용 텍스트로 변환시 null을 확인하는 매서드
+     */
+    private String nullSafe(String value) {
+        return value != null ? value : "";
     }
 
     // --- 편의 메서드 ---
