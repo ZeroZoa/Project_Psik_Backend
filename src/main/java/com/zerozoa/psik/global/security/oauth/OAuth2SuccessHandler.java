@@ -21,8 +21,9 @@ import java.io.IOException;
 /**
  * OAuth2 로그인 성공 핸들러
  * 소셜 로그인(카카오/구글) 성공 시 JWT(Access/Refresh Token)를 생성하고,
- * Refresh Token은 HttpOnly 쿠키에 저장하고,
- * Access Token은 URL 파라미터로 프론트엔드에 전달 후 리다이렉트합니다.
+ * Refresh Token은 HttpOnly 쿠키로 내려준 뒤 토큰 없는 URL로 리다이렉트합니다.
+ * Access Token은 URL/쿠키 어디에도 노출하지 않으며, 프론트가 로드 직후
+ * /api/auth/reissue를 호출해 Refresh Token으로 재발급받아 메모리에만 보관합니다.
  */
 @Slf4j
 @Component
@@ -65,11 +66,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // Refresh Token -> HttpOnly Cookie (보안 필수)
         addCookie(response, "refreshToken", tokenResponse.refreshToken(), (int)(refreshTokenExpirationMs / 1000));
 
-        // Access Token은 URL 파라미터로 전달 (크로스 도메인 해결)
+        // Access Token은 URL에 노출하지 않는다 — 프론트가 로드 직후
+        // /api/auth/reissue를 호출해 RefreshToken 쿠키로 재발급받아 메모리에만 보관한다.
         String redirectUri = member.isProfileComplete() ? webRedirectUri : webProfileSetupUri;
-        String redirectWithToken = redirectUri + "?accessToken=" + tokenResponse.accessToken();
         log.info("[OAuth2] Web Login Success. Redirecting to: {}", redirectUri);
-        getRedirectStrategy().sendRedirect(request, response, redirectWithToken);
+        getRedirectStrategy().sendRedirect(request, response, redirectUri);
     }
 
     private void addCookie(HttpServletResponse response, String name, String value, int maxAge) {
