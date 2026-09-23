@@ -14,6 +14,11 @@
 - jjwt 0.12.7 — JWT 발급/검증
 - GCP Secret Manager — prod 환경변수 관리
 
+## Commands
+- Build: `./gradlew build -x test`
+- Compile check: `./gradlew compileJava`
+- Test: `./gradlew test`
+
 ## 아키텍처
 
 ```
@@ -77,6 +82,16 @@ Ghost User 패턴(UUID: `00000000-0000-0000-0000-000000000000`). 순서: 좋아�
 ### 반정규화
 `Post`에 `likeCount`, `commentCount`, `viewCount` 직접 저장 (COUNT 쿼리 제거).
 
+## Core Rules
+
+- DTO는 Java **record** + Bean Validation 사용 (`@NotBlank`, `@Size`, `@NotNull`) — 예: `IngredientCreateRequest`
+- 예외는 항상 `BusinessException(ErrorCode.XXX, "선택적 메시지")` — 커스텀 예외 클래스를 새로 만들지 않는다. 새 에러 케이스는 `ErrorCode` enum에 추가.
+- 컨트롤러는 `ResponseEntity<T>`를 직접 반환한다. **커스텀 응답 래퍼(`ApiResponse` 등)는 존재하지 않음 — 만들어내지 말 것.**
+- 서비스는 `@RequiredArgsConstructor` 생성자 주입 + 클래스 레벨 `@Transactional(readOnly = true)`, 쓰기 메서드에만 메서드 레벨 `@Transactional` 추가.
+- 조회 헬퍼 메서드는 `findXById`/`findXByUuid` 네이밍으로 private 메서드화하고 `orElseThrow(() -> new BusinessException(ErrorCode.X_NOT_FOUND))` 패턴을 따른다 (`PostService.findPostById` 등 참고).
+- 로깅은 `@Slf4j` + `log.info("[Domain] 액션 설명 - key={}", value)` 형식 (예: `log.info("[Admin] 성분 생성 완료 - id={}, name={}", ...)`).
+- 컨트롤러엔 Swagger 어노테이션(`@Operation`, `@Tag`) 필수.
+
 ## 테스트 전략
 
 **현재 상태**: 테스트 커버리지 사실상 없음 (`PsikApplicationTests`만 존재, 컨텍스트 로딩 확인용 스모크 테스트 수준).
@@ -84,6 +99,11 @@ Ghost User 패턴(UUID: `00000000-0000-0000-0000-000000000000`). 순서: 좋아�
 **원칙**: 전면적인 테스트 인프라 구축보다, 새 기능/버그 수정 시 해당 핵심 로직에 대한 단위 테스트를 최소 1개는 같이 작성하는 것을 목표로 점진적으로 채워나간다.
 
 **우선순위**: 인증/토큰 로직(`AuthService`, `JwtTokenProvider`) > 트랜잭션이 얽힌 비즈니스 로직(회원 탈퇴, RAG 파이프라인) > 단순 CRUD
+
+**컨벤션** (새로 작성 시 적용):
+- 클래스명: `XxxServiceTest`, `XxxControllerTest`
+- JUnit 5 + AssertJ, `@DisplayName`은 한글로 작성
+- Given-When-Then 주석으로 구간 구분
 
 **실행**: `./gradlew test`
 
@@ -118,7 +138,7 @@ Ghost User 패턴(UUID: `00000000-0000-0000-0000-000000000000`). 순서: 좋아�
 - **코드는 직접 수정하지 않고 스니펫만 제공한다.** 사용자가 명시적으로 "이번엔 네가 수정해줘"라고 말할 때만 예외.
 - **git add/commit/push도 항상 사용자가 직접 한다.** AI는 실행할 명령어와 커밋 메시지만 제공하고, 별도 지시("커밋까지 해줘" 등) 없으면 절대 직접 커밋/푸시하지 않는다.
 - 리팩토링/기능 추가 전에는 관련 파일을 먼저 읽고 확인한 뒤 코드를 제공한다.
-- 커밋 메시지는 `type: 설명` 스타일 (`fix:`, `feat:`, `perf:`, `ci:`) — 기존 로그 참고.
+- 커밋 메시지는 `type: 설명` 스타일. 타입: `feat`, `fix`, `docs`, `perf`, `refactor`, `ci`, `chore`. 헤더는 한 줄 요약 위주, 본문은 "왜"가 diff로 안 보일 때만 추가.
 
 ## 알려진 기술 부채 (우선순위 순, 취업시즌 이후 착수 예정)
 
