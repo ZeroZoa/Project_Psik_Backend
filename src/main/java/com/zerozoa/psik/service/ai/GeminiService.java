@@ -100,6 +100,10 @@ public class GeminiService {
                     .timeout(Duration.ofSeconds(20))
                     .block();
 
+            // 진단용 — 응답이 실제로 도착하는지, candidates가 비어있는 세이프티 차단 등인지 확인하기 위해
+            // 파싱 성공/실패와 무관하게 원본 응답을 항상 남긴다. 원인 확인되면 제거할 것.
+            log.info("[Gemini][DEBUG] 피부분석 원본 응답: {}", response);
+
             // Gemini 응답에서 실제 텍스트 추출
             return extractTextFromResponse(response);
 

@@ -113,7 +113,13 @@ public class SkinAnalysisWorker {
     }
 
     private Future<Boolean> submitAnalysisTask(SkinAnalysisRequestedEvent event) {
+        // 진단용 — 이 메시지가 실제로 워커 풀에서 작업을 시작했는지(즉 여기까지 도달했는지)를
+        // 확인하기 위한 로그. 원인 확인되면 제거할 것.
+        log.info("[SkinAnalysisWorker][DEBUG] 작업 제출 - skinAnalysisId={}", event.skinAnalysisId());
+
         return analysisExecutor.submit(() -> {
+            log.info("[SkinAnalysisWorker][DEBUG] 작업 시작 - skinAnalysisId={}", event.skinAnalysisId());
+
             // Pub/Sub은 at-least-once라 같은 메시지가 중복 도착할 수 있음 — 멱등성 체크
             if (!txOps.isPending(event.skinAnalysisId())) {
                 log.info("[SkinAnalysisWorker] 이미 처리됨, 스킵 - skinAnalysisId={}", event.skinAnalysisId());
@@ -121,10 +127,13 @@ public class SkinAnalysisWorker {
             }
 
             byte[] storedBytes = fileStorageService.readBytes(event.imageUrl());
+            log.info("[SkinAnalysisWorker][DEBUG] GCS 읽기 완료 - skinAnalysisId={}", event.skinAnalysisId());
+
             byte[] imageBytes = ImmutableImage.loader()
                     .fromBytes(storedBytes)
                     .bound(512, 512)
                     .bytes(new JpegWriter().withCompression(85));
+            log.info("[SkinAnalysisWorker][DEBUG] 이미지 리사이즈 완료 - skinAnalysisId={}", event.skinAnalysisId());
 
             String resultJson = geminiService.analyzeSkin(imageBytes, "image/jpeg");
             JsonNode result = objectMapper.readTree(resultJson);
