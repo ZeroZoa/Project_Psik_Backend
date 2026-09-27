@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -96,6 +97,7 @@ public class GeminiService {
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(20))
                     .block();
 
             // Gemini 응답에서 실제 텍스트 추출
@@ -150,6 +152,7 @@ public class GeminiService {
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(20))
                     .block();
 
             return extractTextFromResponse(response); // 기존 private 메서드 재사용
