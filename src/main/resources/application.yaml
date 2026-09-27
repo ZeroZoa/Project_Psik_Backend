@@ -1,4 +1,9 @@
 spring:
+  cloud:
+    gcp:
+      project-id: gen-lang-client-0880530479
+      sql:
+        enabled: false
   servlet:
     multipart:
       max-file-size: 10MB
@@ -112,3 +117,8 @@ gemini:
     key: ${GEMINI_API_KEY}
     url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent
     embedding-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent
+
+gcp:
+  pubsub:
+    skin-analysis-topic: skin-analysis-requests
+    skin-analysis-subscription: skin-analysis-requests-sub

@@ -18,13 +18,13 @@ public class CookieUtils {
     }
 
     public static void addCookie(HttpServletResponse response, String name,
-                                 String value, int maxAge) {
+                                 String value, int maxAge, boolean secure) {
         Cookie cookie = new Cookie(name, value);
         cookie.setPath("/");
         cookie.setHttpOnly(true);
         cookie.setMaxAge(maxAge);
-        cookie.setSecure(true);          // HTTPS only
-        cookie.setAttribute("SameSite", "Lax");
+        cookie.setSecure(secure);        // 로컬(app.cookie.secure=false)에서는 HTTP로도 저장되도록
+        cookie.setAttribute("SameSite", secure ? "None" : "Lax");
         response.addCookie(cookie);
     }
 

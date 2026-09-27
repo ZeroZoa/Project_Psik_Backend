@@ -1,6 +1,7 @@
 package com.zerozoa.psik.global.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -37,8 +38,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 만료/서명 오류 등 JWT 예외를 직접 캐치하여 401로 응답
             try {
                 if (jwtTokenProvider.validateToken(token)) {
-                    String uuidString = jwtTokenProvider.getPayload(token);
-                    String role = jwtTokenProvider.getRole(token);
+                    Claims claims = jwtTokenProvider.parseClaims(token);
+
+                    // RefreshToken이 Authorization 헤더로 들어와 Access Token처럼 인증되는 것을 차단
+                    if (!JwtTokenProvider.TYPE_ACCESS.equals(claims.get("typ", String.class))) {
+                        log.warn("[JwtFilter] Access Token이 아닌 토큰으로 인증 시도 - 401 응답");
+                        sendUnauthorizedResponse(response, "유효하지 않은 토큰입니다.");
+                        return;
+                    }
+
+                    String uuidString = claims.getSubject();
+                    String role = claims.get("role", String.class);
 
                     if (role == null) {
                         role = "ROLE_USER";

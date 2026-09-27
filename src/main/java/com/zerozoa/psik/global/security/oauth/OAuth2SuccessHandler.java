@@ -3,7 +3,7 @@ package com.zerozoa.psik.global.security.oauth;
 import com.zerozoa.psik.domain.member.Member;
 import com.zerozoa.psik.dto.auth.TokenResponse;
 import com.zerozoa.psik.global.util.ClientUtils;
-import com.zerozoa.psik.service.AuthService;
+import com.zerozoa.psik.service.auth.AuthService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

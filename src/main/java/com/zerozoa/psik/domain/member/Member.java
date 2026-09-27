@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -56,7 +57,7 @@ public class Member extends BaseTimeEntity {
 
     //------------- 회원 프로필 -------------
 
-    @Column(name = "nickname", length = 30, nullable = false)
+    @Column(name = "nickname", length = 30, nullable = false, unique = true)
     private String nickname;
 
     @Enumerated(EnumType.STRING)
@@ -74,6 +75,7 @@ public class Member extends BaseTimeEntity {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "member_skin_concerns")
     @Enumerated(EnumType.STRING)
+    @BatchSize(size = 100)
     private List<SkinConcern> skinConcerns;
 
     // 프로필 설정 완료 여부

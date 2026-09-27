@@ -3,7 +3,7 @@ package com.zerozoa.psik.global.security.oauth;
 import com.zerozoa.psik.domain.member.Member;
 import com.zerozoa.psik.domain.member.Provider;
 import com.zerozoa.psik.dto.auth.OAuthAttributes;
-import com.zerozoa.psik.service.MemberService;
+import com.zerozoa.psik.service.member.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;

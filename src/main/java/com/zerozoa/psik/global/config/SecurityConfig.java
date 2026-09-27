@@ -10,6 +10,7 @@ import com.zerozoa.psik.global.security.oauth.OAuth2SuccessHandler;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -45,6 +46,9 @@ public class SecurityConfig {
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final ObjectMapper objectMapper;
+
+    @Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
 
     /**
      * Security Filter Chain
@@ -196,6 +200,6 @@ public class SecurityConfig {
 
     @Bean
     public HttpCookieOAuth2AuthorizationRequestRepository cookieAuthorizationRequestRepository() {
-        return new HttpCookieOAuth2AuthorizationRequestRepository();
+        return new HttpCookieOAuth2AuthorizationRequestRepository(cookieSecure);
     }
 }

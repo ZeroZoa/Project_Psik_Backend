@@ -27,6 +27,11 @@ public class RefreshToken {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** 낙관적 락 — 동시 재발급(rotation) 레이스를 감지하기 위함 */
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
     /** 외부 PK - 토큰 소유 회원의 UUID*/
     @Column(name = "member_uuid", columnDefinition = "uuid", nullable = false)
     private UUID memberUuid;

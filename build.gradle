@@ -37,6 +37,7 @@ dependencies {
     implementation 'com.google.cloud.sql:postgres-socket-factory:1.27.1'
     implementation 'com.sksamuel.scrimage:scrimage-core:4.3.10'
     implementation 'com.sksamuel.scrimage:scrimage-webp:4.3.10'
+    implementation 'com.google.cloud:spring-cloud-gcp-starter-pubsub:7.4.10'
 
     //QueryDSL
     implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'

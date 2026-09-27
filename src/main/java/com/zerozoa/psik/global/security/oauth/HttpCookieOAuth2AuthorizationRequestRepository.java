@@ -16,6 +16,11 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
     public static final String OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
     private static final int COOKIE_EXPIRE_SECONDS = 180;
     private static final ObjectMapper objectMapper;
+    private final boolean cookieSecure;
+
+    public HttpCookieOAuth2AuthorizationRequestRepository(boolean cookieSecure) {
+        this.cookieSecure = cookieSecure;
+    }
 
     static {
         objectMapper = new ObjectMapper();
@@ -42,7 +47,8 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
         CookieUtils.addCookie(response,
                 OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME,
                 serialize(authorizationRequest),
-                COOKIE_EXPIRE_SECONDS);
+                COOKIE_EXPIRE_SECONDS,
+                cookieSecure);
     }
 
     @Override
