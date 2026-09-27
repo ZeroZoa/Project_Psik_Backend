@@ -68,6 +68,10 @@ public class SkinAnalysisWorker {
     }
 
     private void onMessage(BasicAcknowledgeablePubsubMessage message) {
+        // 진단용 — Pub/Sub 클라이언트가 콜백 자체를 호출했는지 확정하기 위한 최초 진입 로그.
+        // 원인 확인되면 제거할 것.
+        log.info("[SkinAnalysisWorker][DEBUG] onMessage 콜백 진입");
+
         String payload = message.getPubsubMessage().getData().toStringUtf8();
         try {
             SkinAnalysisRequestedEvent event = objectMapper.readValue(payload, SkinAnalysisRequestedEvent.class);

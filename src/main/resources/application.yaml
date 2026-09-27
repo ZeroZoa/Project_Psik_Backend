@@ -4,6 +4,16 @@ spring:
       project-id: gen-lang-client-0880530479
       sql:
         enabled: false
+      pubsub:
+        # 기본값(라이브러리 자체 기본 executor/flow-control)에 맡겨두면 메시지가
+        # 발행은 성공하고도 onMessage() 콜백까지 전달이 지연/누락되는 현상을 진단할 수 없어
+        # 명시적으로 값을 지정해 통제권을 가져온다.
+        subscriber:
+          executor-threads: 4
+          parallel-pull-count: 1
+          flow-control:
+            max-outstanding-element-count: 8
+            limit-exceeded-behavior: Block
   servlet:
     multipart:
       max-file-size: 10MB
