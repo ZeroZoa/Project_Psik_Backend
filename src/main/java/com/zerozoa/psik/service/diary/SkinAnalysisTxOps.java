@@ -35,6 +35,15 @@ public class SkinAnalysisTxOps {
         SkinAnalysis skinAnalysis = skinAnalysisRepository.findById(skinAnalysisId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANALYSIS_NOT_FOUND));
 
+        // 타임아웃 처리로 이미 FAILED 전환 + 이미지 삭제까지 끝난 뒤에,
+        // 인터럽트에 반응 안 한 좀비 스레드가 뒤늦게 완료 결과를 들고 도착하는 경우를 막음.
+        // (이미 삭제된 이미지를 가리키는 COMPLETED 건이 생기는 걸 방지)
+        if (skinAnalysis.getAnalysisStatus() != AnalysisStatus.PENDING) {
+            log.warn("[SkinAnalysis] 이미 종료 처리된 건이라 완료 결과 무시 - skinAnalysisId={}, status={}",
+                    skinAnalysisId, skinAnalysis.getAnalysisStatus());
+            return;
+        }
+
         skinAnalysis.completeAnalysis(
                 result.path("acneScore").asInt(),
                 result.path("wrinkleScore").asInt(),
@@ -48,6 +57,7 @@ public class SkinAnalysisTxOps {
     @Transactional
     public void markFailed(Long skinAnalysisId) {
         skinAnalysisRepository.findById(skinAnalysisId)
+                .filter(a -> a.getAnalysisStatus() == AnalysisStatus.PENDING)
                 .ifPresent(SkinAnalysis::failAnalysis);
         log.warn("[SkinAnalysis] 분석 실패 처리 - skinAnalysisId={}", skinAnalysisId);
     }
