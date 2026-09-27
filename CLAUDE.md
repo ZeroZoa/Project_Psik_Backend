@@ -33,20 +33,38 @@
 
 ## 패키지 구조
 
+controller/service는 2026-09-27부터 도메인별 하위 패키지로 분리됨 (파일 수가 많아져 flat 구조 유지가 어려워짐). dto/repository는 이전부터 같은 방식으로 도메인별로 나뉘어 있었음.
+
 ```
 com.zerozoa.psik
-├── controller     (13개: Admin, Auth, Chat, Comment, Ingredient, Inquiry,
-│                   Member, MemberProduct, MyComment, Post, Product,
-│                   SkinAnalysis, SkinDiary)
+├── controller
+│   ├── admin      (Admin)
+│   ├── auth       (Auth)
+│   ├── chat       (Chat)
+│   ├── community  (Comment, MyComment, Post)
+│   ├── contents   (Ingredient, MemberProduct, Product)
+│   ├── diary      (SkinAnalysis, SkinDiary)
+│   ├── inquiry    (Inquiry)
+│   └── member     (Member)
 ├── domain         (community, contents, member, diary, auth, common, inquiry)
-├── dto
+├── dto            (admin, auth, chat, community, contents, diary, inquiry, member)
 ├── global
 │   ├── config     (SecurityConfig, CorsConfig, GcsConfig, QueryDslConfig 등)
 │   ├── exception  (GlobalExceptionHandler + BusinessException/ErrorCode)
 │   ├── security   (JwtTokenProvider, JwtAuthenticationFilter, oauth/*)
 │   └── scheduler  (TokenCleanupScheduler)
-├── repository
-└── service        (16개)
+├── repository     (auth, community, contents, diary, inquiry, member)
+└── service
+    ├── admin      (AdminService)
+    ├── ai         (GeminiService, EmbeddingService — contents/diary/chat이 공유하는 AI 유틸리티라 단일 도메인에 넣지 않음)
+    ├── auth       (AuthService)
+    ├── chat       (RagService — chat 전용이라 도메인 패키지로 분리)
+    ├── community  (CommentService, PostService)
+    ├── contents   (IngredientService, ProductService, MemberProductService)
+    ├── diary      (SkinDiaryService, SkinAnalysisService, SkinAnalysisEventPublisher, SkinAnalysisTxOps, SkinAnalysisWorker)
+    ├── inquiry    (InquiryService)
+    ├── member     (MemberService)
+    └── storage    (FileStorageService, GcsFileStorageService, LocalFileStorageService — 여러 도메인이 공유하는 파일 저장 유틸리티)
 ```
 
 ## 핵심 설계 결정 (Why)
@@ -70,8 +88,13 @@ com.zerozoa.psik
 2. **질의 시점**: `ChatController` → `RagService` — 질문 임베딩 → pgvector 유사도 검색(threshold=0.6, TOP_K=5) → 유사 성분 없으면 LLM 호출 없이 즉시 응답(비용 절감) → Gemini `systemInstruction`으로 컨텍스트+피부고민 주입해 답변 생성.
 3. `pgvector`는 `<=>` 코사인 유사도, `@ColumnTransformer(write = "CAST(? AS vector)")`로 Hibernate varchar→vector 타입 불일치 해결.
 
-### 피부 이미지 분석
-`SkinAnalysisService` — Chain-of-Thought 프롬프트로 Gemini Vision 호출, 하루 최대 3회 제한(KST 기준), 재분석 방지. 이미지는 Scrimage로 512x512 JPEG 압축 후 전송.
+### 피부 이미지 분석 (Pub/Sub 비동기 처리)
+요청 접수와 실제 분석을 분리한 구조:
+1. **접수(동기)**: `SkinAnalysisService.analyze()` — 다이어리 소유자/재분석/하루 3회(KST) 제한 검증 후 이미지를 GCS에 저장하고 `SkinAnalysis`를 `PENDING` 상태로 즉시 저장. 이어서 `SkinAnalysisEventPublisher`가 `skin-analysis-requests` 토픽에 이벤트 발행. 발행 실패 시 `BusinessException`(unchecked)으로 전파시켜 트랜잭션과 함께 롤백 + 업로드 이미지 삭제.
+2. **처리(비동기)**: `SkinAnalysisWorker`가 `skin-analysis-requests-sub` 구독을 `@PostConstruct`에서 등록해 메시지를 수신. Chain-of-Thought 프롬프트로 Gemini Vision 호출 전, Scrimage로 512x512 JPEG 압축.
+3. **멱등성**: Pub/Sub은 at-least-once라 메시지가 중복 도착할 수 있어 `SkinAnalysisTxOps.isPending()`으로 이미 처리된 건 스킵. ⚠️ 단, 체크와 상태 변경 사이 원자성이 없어 진짜 동시 배달(같은 메시지 두 컨슈머가 동시 처리)까지는 못 막음 — 기술 부채 참고.
+4. **상태 전이**: `PENDING` → 성공 시 `SkinAnalysisTxOps.markCompleted()`, 얼굴 미검출(`FACE_NOT_DETECTED`) 또는 그 외 예외 시 `markFailed()` + GCS 이미지 삭제. 각 메서드가 독립 트랜잭션이라 실패 처리가 다른 롤백에 휩쓸리지 않음.
+5. 프론트는 `SkinAnalysisProvider`가 폴링으로 상태 변화를 감지.
 
 ### 이미지 처리
 `FileStorageService` 인터페이스 → `@Profile("prod")`: GcsFileStorageService, `@Profile("!prod")`: LocalFileStorageService. 업로드 시 Scrimage로 600x600 WebP 변환 후 저장. 확장자는 검증만 하고 실제로는 항상 WebP로 재인코딩(악성 파일 방어 겸함).
@@ -94,7 +117,7 @@ Ghost User 패턴(UUID: `00000000-0000-0000-0000-000000000000`). 순서: 좋아�
 
 ## 도구 사용 우선순위
 
-JetBrains(IntelliJ) MCP 도구가 세션에 연결되어 있다면, 단순 열람 이상의 작업엔 일반 Read/Bash/grep보다 이걸 우선 사용한다. IntelliJ는 `/Users/noseungjun/IdeaProjects/Project_Psik`(부모 폴더) 전체를 하나의 프로젝트로 열어둔 상태이므로, `projectPath`는 항상 이 경로로 지정하고 `filePath`는 `psik_backend/...`처럼 그 기준 상대경로로 준다.
+JetBrains(IntelliJ) MCP 도구가 세션에 연결되어 있다면, 단순 열람 이상의 작업엔 일반 Read/Bash/grep보다 이걸 우선 사용한다. IntelliJ는 `psik_backend`와 `psik_frontend`를 **각각 별도 프로젝트**로 열어둔 상태다(2026-09-27 기준 — 예전엔 부모 폴더 하나로 열려있었으나 바뀜, 매번 실제로 연결된 프로젝트 목록을 에러 메시지나 `get_project_modules`로 확인할 것). 백엔드 파일 작업 시 `projectPath`는 `/Users/noseungjun/IdeaProjects/Project_Psik/psik_backend`로 지정하고 `filePath`는 그 기준 상대경로(`src/main/java/...`)로 준다.
 
 - **코드 진단**: `get_file_problems` — 컴파일 통과 이상의 IntelliJ 인스펙션(코드 스멜, 잠재 버그, 미사용 import)까지 확인. 정상 작동 검증됨(2026-09-23).
 - **심볼 리네임**: `rename_refactoring` — 텍스트 치환 대신 프로젝트 전체 참조를 안전하게 갱신 (미검증, 시도 후 실패 시 수동 폴백)
@@ -154,10 +177,9 @@ JetBrains(IntelliJ) MCP 도구가 세션에 연결되어 있다면, 단순 열�
 ## 알려진 기술 부채 (우선순위 순, 취업시즌 이후 착수 예정)
 
 1. JWT Access/Refresh 토큰에 타입 클레임 없음 (RefreshToken을 Access처럼 재사용 가능)
-2. 좋아요 토글(`PostService`/`CommentService`) 동시성 미처리 — `MemberProductService.markAsOwned`의 `DataIntegrityViolationException` 캐치 패턴 재사용 권장
-3. 피부 분석 실패 시 일부 예외 경로에서 GCS 이미지 파일 정리 누락
-4. Gemini 호출(`GeminiService`, `EmbeddingService`)에 WebClient 타임아웃 미설정
-5. `/api/chat`에 요청 빈도 제한 없음 (SkinAnalysis는 하루 3회 제한 있음)
-6. `AdminService.embedAll()` 동기 순차 처리 + `Thread.sleep(150)` — 성분 많아지면 요청 스레드 장시간 점유
-7. 공개 페이징 API 최대 size 캡 없음
-8. `PostService.deletePost` — GCS 삭제 후 DB 삭제 순서 (update 흐름과 반대)
+2. `SkinAnalysisWorker`의 멱등성 체크(`isPending`)가 실제 상태 변경과 원자적이지 않음 — Pub/Sub 중복 배달 시 compare-and-swap 필요
+3. Gemini 호출(`GeminiService`, `EmbeddingService`)에 WebClient 타임아웃 미설정
+4. `/api/chat`에 요청 빈도 제한 없음 (SkinAnalysis는 하루 3회 제한 있음)
+5. `AdminService.embedAll()` 동기 순차 처리 + `Thread.sleep(150)` — 성분 많아지면 요청 스레드 장시간 점유
+6. 공개 페이징 API 최대 size 캡 없음
+7. `PostService.deletePost` — GCS 삭제 후 DB 삭제 순서 (update 흐름과 반대)

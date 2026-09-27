@@ -28,4 +28,10 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
     @Modifying
     @Query("DELETE FROM PostLike pl WHERE pl.member = :member")
     void deleteAllByMember(@Param("member") Member member);
+
+    // 회원 탈퇴 시 좋아요 삭제 전에 호출 — bulk delete는 Post.decreaseLikeCount()를 거치지 않으므로 카운터를 직접 감소
+    @Modifying
+    @Query("UPDATE Post p SET p.likeCount = p.likeCount - 1 WHERE p.id IN " +
+            "(SELECT pl.post.id FROM PostLike pl WHERE pl.member = :member)")
+    void decrementLikeCountForMember(@Param("member") Member member);
 }

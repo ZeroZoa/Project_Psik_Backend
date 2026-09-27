@@ -32,4 +32,10 @@ public interface MemberProductRepository extends JpaRepository<MemberProduct, Lo
     @Modifying
     @Query("DELETE FROM MemberProduct mp WHERE mp.member = :member")
     void deleteAllByMember(@Param("member") Member member);
+
+    // 회원 탈퇴 시 보유 제품 삭제 전에 호출 — bulk delete는 Product.incrementOwnedCount()의 반대편을 거치지 않으므로 카운터를 직접 감소
+    @Modifying
+    @Query("UPDATE Product p SET p.ownedCount = p.ownedCount - 1 WHERE p.id IN " +
+            "(SELECT mp.product.id FROM MemberProduct mp WHERE mp.member = :member)")
+    void decrementOwnedCountForMember(@Param("member") Member member);
 }
