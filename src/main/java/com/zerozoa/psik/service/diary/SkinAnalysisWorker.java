@@ -27,7 +27,7 @@ import java.util.concurrent.TimeoutException;
 @RequiredArgsConstructor
 public class SkinAnalysisWorker {
 
-    private static final long PROCESS_TIMEOUT_SECONDS = 30;
+    private static final long PROCESS_TIMEOUT_SECONDS = 60;
 
     private final PubSubTemplate pubSubTemplate;
     private final ObjectMapper objectMapper;
@@ -70,13 +70,15 @@ public class SkinAnalysisWorker {
     }
 
     private void process(SkinAnalysisRequestedEvent event) {
-        // Pub/Sub은 at-least-once라 같은 메시지가 중복 도착할 수 있음 — 멱등성 체크
-        if (!txOps.isPending(event.skinAnalysisId())) {
-            log.info("[SkinAnalysisWorker] 이미 처리됨, 스킵 - skinAnalysisId={}", event.skinAnalysisId());
-            return;
-        }
+        // 멱등성 체크(DB 조회)도 스레드풀 밖에서 하면 여기서 멈출 때 타임아웃 보호를 못 받음 —
+        // 그래서 isPending()까지 통째로 같은 Future 안에 넣어 전체 구간을 60초로 제한한다.
+        Future<Boolean> future = analysisExecutor.submit(() -> {
+            // Pub/Sub은 at-least-once라 같은 메시지가 중복 도착할 수 있음 — 멱등성 체크
+            if (!txOps.isPending(event.skinAnalysisId())) {
+                log.info("[SkinAnalysisWorker] 이미 처리됨, 스킵 - skinAnalysisId={}", event.skinAnalysisId());
+                return false;
+            }
 
-        Future<JsonNode> future = analysisExecutor.submit(() -> {
             byte[] storedBytes = fileStorageService.readBytes(event.imageUrl());
             byte[] imageBytes = ImmutableImage.loader()
                     .fromBytes(storedBytes)
@@ -84,22 +86,23 @@ public class SkinAnalysisWorker {
                     .bytes(new JpegWriter().withCompression(85));
 
             String resultJson = geminiService.analyzeSkin(imageBytes, "image/jpeg");
-            return objectMapper.readTree(resultJson);
-        });
-
-        try {
-            JsonNode result = future.get(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            JsonNode result = objectMapper.readTree(resultJson);
 
             if (!result.path("faceDetected").asBoolean(false)) {
                 txOps.markFailed(event.skinAnalysisId());
                 fileStorageService.delete(event.imageUrl());
-                return;
+                return true;
             }
 
             txOps.markCompleted(event.skinAnalysisId(), result);
+            return true;
+        });
+
+        try {
+            future.get(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         } catch (TimeoutException e) {
-            // GCS 읽기/이미지 리사이즈/Gemini 호출 중 어디서 멈추든 30초 안에 강제 실패 처리.
+            // GCS 읽기/이미지 리사이즈/Gemini 호출 중 어디서 멈추든 60초 안에 강제 실패 처리.
             // cancel(true)로 인터럽트를 시도하지만, 블로킹 소켓 I/O는 인터럽트에 반응 안 할 수도 있어
             // 스레드 자체는 못 끊길 수 있음 — 그래서 이 작업들을 전용 풀로 격리해뒀음(전역 풀 오염 방지).
             future.cancel(true);
