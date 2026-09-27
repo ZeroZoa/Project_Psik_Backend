@@ -10,7 +10,7 @@ spring:
         # 명시적으로 값을 지정해 통제권을 가져온다.
         subscriber:
           executor-threads: 4
-          parallel-pull-count: 1
+          parallel-pull-count: 8
           flow-control:
             max-outstanding-element-count: 8
             limit-exceeded-behavior: Block
