@@ -36,10 +36,10 @@ public class SkinAnalysisTxOps {
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANALYSIS_NOT_FOUND));
 
         skinAnalysis.completeAnalysis(
-                result.path("acne_score").asInt(),
-                result.path("wrinkle_score").asInt(),
-                result.path("tone_score").asInt(),
-                result.path("oil_score").asInt(),
+                result.path("acneScore").asInt(),
+                result.path("wrinkleScore").asInt(),
+                result.path("toneScore").asInt(),
+                result.path("oilScore").asInt(),
                 result.path("summary").asText()
         );
         log.info("[SkinAnalysis] 분석 완료 - skinAnalysisId={}", skinAnalysisId);
