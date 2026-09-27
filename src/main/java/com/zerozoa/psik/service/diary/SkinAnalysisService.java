@@ -32,7 +32,7 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class SkinAnalysisService {
 
-    private static final int DAILY_ANALYSIS_LIMIT = 20; // 하루 최대 분석 횟수 (테스트를 위해 임시 상향)
+    private static final int DAILY_ANALYSIS_LIMIT = 3; // 하루 최대 분석 횟수
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final SkinAnalysisRepository skinAnalysisRepository;
