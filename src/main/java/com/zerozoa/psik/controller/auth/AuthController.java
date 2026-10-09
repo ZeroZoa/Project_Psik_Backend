@@ -121,15 +121,6 @@ public class AuthController {
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        // Access Token 쿠키도 만료 처리
-        ResponseCookie accessCookie = ResponseCookie.from("accessToken", "")
-                .httpOnly(true)
-                .path("/")
-                .maxAge(0)
-                .sameSite(cookieSecure ? "None" : "Lax")
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
-
         return ResponseEntity.noContent().build();
     }
 }
