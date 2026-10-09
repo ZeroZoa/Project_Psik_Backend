@@ -1,6 +1,5 @@
 package com.zerozoa.psik.service.diary;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.spring.pubsub.core.PubSubTemplate;
 import com.zerozoa.psik.dto.diary.SkinAnalysisRequestedEvent;
@@ -11,9 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Service
@@ -41,14 +38,14 @@ public class SkinAnalysisEventPublisher {
             log.info("[SkinAnalysis] Pub/Sub 발행 - skinAnalysisId={}", event.skinAnalysisId());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.error("[SkinAnalysis] Pub/Sub 발행 중단 - skinAnalysisId={}", event.skinAnalysisId(), e);
-            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "분석 요청 접수 중 오류가 발생했습니다.");
-        } catch (ExecutionException | TimeoutException | RuntimeException e) {
-            log.error("[SkinAnalysis] Pub/Sub 발행 실패 - skinAnalysisId={}", event.skinAnalysisId(), e);
-            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "분석 요청 접수 중 오류가 발생했습니다.");
-        } catch (JsonProcessingException e) {
-            log.error("[SkinAnalysis] 이벤트 직렬화 실패 - skinAnalysisId={}", event.skinAnalysisId(), e);
-            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "분석 요청 접수 중 오류가 발생했습니다.");
+            throw publishFailed(event, e);
+        } catch (Exception e) {
+            throw publishFailed(event, e);
         }
+    }
+
+    private BusinessException publishFailed(SkinAnalysisRequestedEvent event, Exception cause) {
+        log.error("[SkinAnalysis] Pub/Sub 발행 실패 - skinAnalysisId={}", event.skinAnalysisId(), cause);
+        return new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "분석 요청 접수 중 오류가 발생했습니다.");
     }
 }
