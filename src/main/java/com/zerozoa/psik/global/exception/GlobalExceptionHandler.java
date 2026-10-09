@@ -23,7 +23,7 @@ public class GlobalExceptionHandler {
         } else {
             log.warn("[Business Exception] Code: {}, Message: {}", e.getErrorCode().getCode(), e.getMessage());
         }
-        return ErrorResponse.toResponseEntity(e.getErrorCode());
+        return ErrorResponse.toResponseEntity(e.getErrorCode(), e.getMessage());
     }
 
     //@Valid 유효성 검사 실패 처리
