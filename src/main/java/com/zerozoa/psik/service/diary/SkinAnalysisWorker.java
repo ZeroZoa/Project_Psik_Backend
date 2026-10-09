@@ -1,5 +1,6 @@
 package com.zerozoa.psik.service.diary;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.spring.pubsub.core.PubSubTemplate;
@@ -8,6 +9,7 @@ import com.sksamuel.scrimage.ImmutableImage;
 import com.sksamuel.scrimage.nio.JpegWriter;
 import com.zerozoa.psik.dto.diary.SkinAnalysisRequestedEvent;
 import com.zerozoa.psik.service.ai.GeminiService;
+import com.zerozoa.psik.service.diary.SkinAnalysisTxOps.Checkpoint;
 import com.zerozoa.psik.service.storage.FileStorageService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -16,20 +18,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class SkinAnalysisWorker {
 
-    private static final long PROCESS_TIMEOUT_SECONDS = 60;
+    private static final long PROCESS_TIMEOUT_SECONDS = 60;                  // 한 번의 처리 시도 상한
+    private static final Duration PROCESS_DEADLINE = Duration.ofMinutes(5);  // 접수 후 이 시간이 지나면 재시도 없이 실패
 
     private final PubSubTemplate pubSubTemplate;
     private final ObjectMapper objectMapper;
@@ -40,22 +43,15 @@ public class SkinAnalysisWorker {
     @Value("${gcp.pubsub.skin-analysis-subscription}")
     private String subscriptionName;
 
-    // GCS 읽기/Gemini 호출처럼 블로킹 I/O가 발생하는 작업 전용 풀.
-    // 공용 ForkJoinPool을 쓰면 여기서 멈춘 작업이 무관한 다른 병렬 작업의 스레드까지 잠식할 수 있어 분리.
-    // 대기열도 짧게(4) 제한 — 무제한 큐를 쓰면 대기 시간까지 PROCESS_TIMEOUT_SECONDS에 포함되어
-    // 실제로는 멈춘 게 아니라 밀린 것뿐인 요청까지 타임아웃으로 잘못 처리됨. 큐까지 꽉 차면
-    // RejectedExecutionException을 그대로 던져서 onMessage()의 catch가 nack 처리하게 하고,
-    // Pub/Sub의 재전달(backoff)에 맡긴다.
+    // 블로킹 I/O(GCS, Gemini) 전용 풀. 대기열을 제한해 대기 시간이 타임아웃에 섞이지 않게 하고,
+    // 가득 차면 RejectedExecutionException → nack으로 재전달한다.
     private final ExecutorService analysisExecutor = new ThreadPoolExecutor(
-            4, 4,
-            0L, TimeUnit.MILLISECONDS,
-            new ArrayBlockingQueue<>(4),
+            4, 4, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(4),
             r -> {
                 Thread t = new Thread(r, "skin-analysis-worker");
                 t.setDaemon(true);
                 return t;
-            }
-    );
+            });
 
     @PostConstruct
     public void subscribe() {
@@ -67,76 +63,78 @@ public class SkinAnalysisWorker {
         analysisExecutor.shutdownNow();
     }
 
-    private void onMessage(BasicAcknowledgeablePubsubMessage message) {
+    void onMessage(BasicAcknowledgeablePubsubMessage message) {
         String payload = message.getPubsubMessage().getData().toStringUtf8();
+
+        SkinAnalysisRequestedEvent event;
         try {
-            SkinAnalysisRequestedEvent event = objectMapper.readValue(payload, SkinAnalysisRequestedEvent.class);
+            event = objectMapper.readValue(payload, SkinAnalysisRequestedEvent.class);
+        } catch (JsonProcessingException e) {
+            log.error("[SkinAnalysisWorker] 복구 불가능한 메시지, 폐기 - payload={}", payload, e);
+            message.ack();      // 다시 받아도 못 읽는 메시지
+            return;
+        }
+
+        try {
             process(event);
         } catch (Exception e) {
-            log.error("[SkinAnalysisWorker] 메시지 처리 실패 - payload={}", payload, e);
-            message.nack(); // 재전달 유도
+            log.warn("[SkinAnalysisWorker] 일시적 처리 실패, 재전달 요청 - skinAnalysisId={}", event.skinAnalysisId(), e);
+            message.nack();     // 풀 포화, DB 일시 장애 등
             return;
         }
         message.ack();
     }
 
     private void process(SkinAnalysisRequestedEvent event) {
-        // 멱등성 체크(DB 조회)도 스레드풀 밖에서 하면 여기서 멈출 때 타임아웃 보호를 못 받음 —
-        // 그래서 isPending()까지 통째로 같은 Future 안에 넣어 전체 구간을 60초로 제한한다.
         Future<Boolean> future;
         try {
-            future = submitAnalysisTask(event);
+            future = analysisExecutor.submit(() -> analyze(event));
         } catch (RejectedExecutionException e) {
-            // 워커 풀(스레드 4 + 대기열 4)이 꽉 찬 상태 — 여기서 그냥 기다리면 대기 시간이
-            // PROCESS_TIMEOUT_SECONDS를 갉아먹으므로, 즉시 포기하고 Pub/Sub 재전달에 맡긴다.
             log.warn("[SkinAnalysisWorker] 워커 풀 포화로 재시도 위임 - skinAnalysisId={}", event.skinAnalysisId());
-            throw e; // onMessage()의 catch(Exception)가 nack 처리
+            throw e;
         }
 
         try {
             future.get(PROCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-
-        } catch (TimeoutException e) {
-            // GCS 읽기/이미지 리사이즈/Gemini 호출 중 어디서 멈추든 60초 안에 강제 실패 처리.
-            // cancel(true)로 인터럽트를 시도하지만, 블로킹 소켓 I/O는 인터럽트에 반응 안 할 수도 있어
-            // 스레드 자체는 못 끊길 수 있음 — 그래서 이 작업들을 전용 풀로 격리해뒀음(전역 풀 오염 방지).
+        } catch (Exception e) {     // 타임아웃 포함, 어디서 실패하든 같은 정리
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             future.cancel(true);
-            log.error("[SkinAnalysisWorker] 처리 시간 초과 - skinAnalysisId={}", event.skinAnalysisId());
-            txOps.markFailed(event.skinAnalysisId());
-            fileStorageService.delete(event.imageUrl());
-        } catch (Exception e) {
-            // Gemini 실패든 파싱 실패든 원인 불문하고 한 곳에서 정리 (백로그 3번과 동일 원칙)
             log.error("[SkinAnalysisWorker] 분석 실패 - skinAnalysisId={}", event.skinAnalysisId(), e);
-            txOps.markFailed(event.skinAnalysisId());
-            fileStorageService.delete(event.imageUrl());
+            fail(event);
         }
     }
 
-    private Future<Boolean> submitAnalysisTask(SkinAnalysisRequestedEvent event) {
-        return analysisExecutor.submit(() -> {
-            // Pub/Sub은 at-least-once라 같은 메시지가 중복 도착할 수 있음 — 멱등성 체크
-            if (!txOps.isPending(event.skinAnalysisId())) {
-                log.info("[SkinAnalysisWorker] 이미 처리됨, 스킵 - skinAnalysisId={}", event.skinAnalysisId());
-                return false;
-            }
+    private boolean analyze(SkinAnalysisRequestedEvent event) throws Exception {
+        Checkpoint checkpoint = txOps.check(event.skinAnalysisId(), PROCESS_DEADLINE);
+        if (checkpoint == Checkpoint.ALREADY_DONE) {
+            log.info("[SkinAnalysisWorker] 이미 처리됨, 스킵 - skinAnalysisId={}", event.skinAnalysisId());
+            return false;
+        }
+        if (checkpoint == Checkpoint.EXPIRED) {
+            log.warn("[SkinAnalysisWorker] 처리 기한 초과 - skinAnalysisId={}", event.skinAnalysisId());
+            fail(event);
+            return false;
+        }
 
-            byte[] storedBytes = fileStorageService.readBytes(event.imageUrl());
-            byte[] imageBytes = ImmutableImage.loader()
-                    .fromBytes(storedBytes)
-                    .bound(512, 512)
-                    .bytes(new JpegWriter().withCompression(85));
+        byte[] imageBytes = ImmutableImage.loader()
+                .fromBytes(fileStorageService.readBytes(event.imageUrl()))
+                .bound(512, 512)
+                .bytes(new JpegWriter().withCompression(85));
 
-            String resultJson = geminiService.analyzeSkin(imageBytes, "image/jpeg");
-            JsonNode result = objectMapper.readTree(resultJson);
+        JsonNode result = objectMapper.readTree(geminiService.analyzeSkin(imageBytes, "image/jpeg"));
 
-            if (!result.path("faceDetected").asBoolean(false)) {
-                txOps.markFailed(event.skinAnalysisId());
-                fileStorageService.delete(event.imageUrl());
-                return true;
-            }
-
+        if (result.path("faceDetected").asBoolean(false)) {
             txOps.markCompleted(event.skinAnalysisId(), result);
-            return true;
-        });
+        } else {
+            fail(event);            // 얼굴 없음/여러 명 — 거절
+        }
+        return true;
+    }
+
+    private void fail(SkinAnalysisRequestedEvent event) {
+        txOps.markFailed(event.skinAnalysisId());
+        fileStorageService.delete(event.imageUrl());
     }
 }

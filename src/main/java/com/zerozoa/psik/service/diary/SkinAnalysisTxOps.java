@@ -11,6 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
+
 /**
  * SkinAnalysisWorker 전용 상태 변경 메서드 모음.
  * 각 메서드가 독립된 트랜잭션이라, Worker의 예외 처리 흐름 중간에 호출해도
@@ -23,11 +26,17 @@ public class SkinAnalysisTxOps {
 
     private final SkinAnalysisRepository skinAnalysisRepository;
 
+    public enum Checkpoint { PROCEED, ALREADY_DONE, EXPIRED }
+
     @Transactional(readOnly = true)
-    public boolean isPending(Long skinAnalysisId) {
+    public Checkpoint check(Long skinAnalysisId, Duration deadline) {
         return skinAnalysisRepository.findById(skinAnalysisId)
-                .map(a -> a.getAnalysisStatus() == AnalysisStatus.PENDING)
-                .orElse(false);
+                .map(a -> {
+                    if (a.getAnalysisStatus() != AnalysisStatus.PENDING) return Checkpoint.ALREADY_DONE;
+                    return a.getCreatedAt().plus(deadline).isBefore(Instant.now())
+                            ? Checkpoint.EXPIRED : Checkpoint.PROCEED;
+                })
+                .orElse(Checkpoint.ALREADY_DONE);
     }
 
     @Transactional
