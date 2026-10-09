@@ -83,8 +83,7 @@ public class AuthService {
             throw new BusinessException(ErrorCode.INVALID_TOKEN, "토큰 소유자가 일치하지 않습니다.");
         }
 
-        Member member = memberRepository.findByUuid(memberUuid)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
         //새 토큰 생성
         String newAccessToken = jwtTokenProvider.createAccessToken(memberUuid, member.getRole().getKey());

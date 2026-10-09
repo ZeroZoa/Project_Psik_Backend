@@ -59,8 +59,7 @@ public class PostService {
      */
     @Transactional
     public PostResponse createPost(UUID memberUuid, PostRequest request, List<MultipartFile> images) {
-        Member member = memberRepository.findByUuid(memberUuid)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
         Post post = Post.builder()
                 .member(member)
@@ -142,7 +141,7 @@ public class PostService {
         // 비로그인 사용자는 likedByMe = false
         boolean likedByMe = false;
         if (memberUuid != null) {
-            Member member = findMemberByUuid(memberUuid);
+            Member member = memberRepository.findByUuidOrThrow(memberUuid);
             likedByMe = postLikeRepository.existsByPostAndMember(post, member);
         }
 
@@ -188,7 +187,7 @@ public class PostService {
             fileStorageService.deleteAll(oldImageUrls);
         }
 
-        Member member = findMemberByUuid(memberUuid);
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
         boolean likedByMe = postLikeRepository.existsByPostAndMember(post, member);
         return PostResponse.fromDetail(post, likedByMe);
     }
@@ -203,7 +202,7 @@ public class PostService {
     @Transactional
     public void deletePost(UUID memberUuid, Long postId) {
         Post post = findPostById(postId);
-        Member member = findMemberByUuid(memberUuid); // ← 추가
+        Member member = memberRepository.findByUuidOrThrow(memberUuid); // ← 추가
 
         // 관리자이거나 작성자인 경우에만 삭제 허용
         if (member.getRole() != Role.ADMIN && !post.isOwner(memberUuid)) {
@@ -248,7 +247,7 @@ public class PostService {
      * @return 내가 작성한 게시글 목록 (Page)
      */
     public Page<PostResponse> getMyPosts(UUID memberUuid, Pageable pageable) {
-        Member member = findMemberByUuid(memberUuid);
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
         return postRepository.findByMemberOrderByCreatedAtDesc(member, pageable)
                 .map(PostResponse::fromList);
     }
@@ -261,7 +260,7 @@ public class PostService {
      * @return 내가 좋아요한 글 목록 (Page)
      */
     public Page<PostResponse> getMyLikedPosts(UUID memberUuid, Pageable pageable) {
-        Member member = findMemberByUuid(memberUuid);
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
         return postRepository.findLikedPostsByMember(member, pageable)
                 .map(PostResponse::fromList);
     }
@@ -274,7 +273,7 @@ public class PostService {
      * @return 내가 댓글 단 글 목록 (Page)
      */
     public Page<PostResponse> getMyCommentedPosts(UUID memberUuid, Pageable pageable) {
-        Member member = findMemberByUuid(memberUuid);
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
         return postRepository.findCommentedPostsByMember(member, pageable)
                 .map(PostResponse::fromList);
     }
@@ -292,7 +291,7 @@ public class PostService {
     @Transactional
     public boolean toggleLike(UUID memberUuid, Long postId) {
         Post post = findPostById(postId);
-        Member member = findMemberByUuid(memberUuid);
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
         //회원과 글을 조회하여 이미 좋아요한 회원이라면 좋아요 삭제, 아직 좋아요하지 않은 회원이라면 생성
         Optional<PostLike> existingLike = postLikeRepository.findByPostAndMember(post, member);
@@ -328,17 +327,6 @@ public class PostService {
     private Post findPostById(Long postId) {
         return postRepository.findById(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
-    }
-
-    /**
-     * 회원 찾기 - (조회)
-     * @param memberUuid 찾을 회원의 UUID
-     * @throws BusinessException Member가 존재하지 않는 경우 {@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
-     * @return Member
-     */
-    private Member findMemberByUuid(UUID memberUuid) {
-        return memberRepository.findByUuid(memberUuid)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
     }
 
     /**

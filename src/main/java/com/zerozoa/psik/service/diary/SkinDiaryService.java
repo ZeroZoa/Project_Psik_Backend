@@ -50,8 +50,7 @@ public class SkinDiaryService {
     @Transactional
     public SkinDiaryResponse createDiary(UUID memberUuid, SkinDiaryRequest request) {
 
-        Member member = memberRepository.findByUuid(memberUuid)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
         Instant normalizedInstant = normalizeToKstMidnight(request.recordDate());
 
@@ -105,8 +104,7 @@ public class SkinDiaryService {
      */
     public SkinDiaryResponse getDiaryByDate(UUID memberUuid, Instant recordDate) {
 
-        Member member = memberRepository.findByUuid(memberUuid)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
         Instant normalizedInstant = normalizeToKstMidnight(recordDate);
 
@@ -126,8 +124,7 @@ public class SkinDiaryService {
      */
     public List<SkinDiaryResponse> getMonthlyDiaries(UUID memberUuid, int year, int month) {
 
-        Member member = memberRepository.findByUuid(memberUuid)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
         YearMonth yearMonth = YearMonth.of(year, month);
 
@@ -223,8 +220,7 @@ public class SkinDiaryService {
      * @return List<SkinDiaryResponse>
      */
     public List<SkinDiaryResponse> getDiariesByRange(UUID memberUuid, Instant from, Instant to) {
-        Member member = memberRepository.findByUuid(memberUuid)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
         return skinDiaryRepository.findMonthlyDiaries(member, from, to)
                 .stream()

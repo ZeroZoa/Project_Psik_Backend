@@ -42,8 +42,7 @@ public class MemberProductService {
             throw new BusinessException(ErrorCode.ALREADY_OWNED_PRODUCT);
         }
 
-        Member member = memberRepository.findByUuid(memberUuid)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 

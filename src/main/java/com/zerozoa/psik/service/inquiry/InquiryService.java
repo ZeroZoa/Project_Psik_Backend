@@ -34,8 +34,7 @@ public class InquiryService {
     /** 문의 등록 */
     @Transactional
     public InquiryResponse createInquiry(UUID memberUuid, InquiryRequest request) {
-        Member member = memberRepository.findByUuid(memberUuid)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
 
         Inquiry inquiry = Inquiry.builder()
