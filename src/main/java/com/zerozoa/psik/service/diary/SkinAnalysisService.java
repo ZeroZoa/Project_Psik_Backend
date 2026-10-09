@@ -57,12 +57,7 @@ public class SkinAnalysisService {
     public SkinAnalysisResponse analyze(UUID memberUuid, Long diaryId, MultipartFile image) {
 
         // 다이어리 조회 + 소유자 검증
-        SkinDiary skinDiary = skinDiaryRepository.findById(diaryId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.DIARY_NOT_FOUND));
-
-        if (!skinDiary.getMember().getUuid().equals(memberUuid)) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED);
-        }
+        SkinDiary skinDiary = skinDiaryRepository.findOwnedById(diaryId, memberUuid);
 
         // 기존 분석 결과 확인 — COMPLETED/PENDING은 차단, FAILED는 재시도 허용
         Optional<SkinAnalysis> existing = skinAnalysisRepository.findBySkinDiary(skinDiary);
@@ -129,12 +124,7 @@ public class SkinAnalysisService {
      */
     public SkinAnalysisResponse getAnalysis(UUID memberUuid, Long diaryId) {
 
-        SkinDiary skinDiary = skinDiaryRepository.findById(diaryId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.DIARY_NOT_FOUND));
-
-        if (!skinDiary.getMember().getUuid().equals(memberUuid)) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED);
-        }
+        SkinDiary skinDiary = skinDiaryRepository.findOwnedById(diaryId, memberUuid);
 
         SkinAnalysis skinAnalysis = skinAnalysisRepository.findBySkinDiary(skinDiary)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANALYSIS_NOT_FOUND));

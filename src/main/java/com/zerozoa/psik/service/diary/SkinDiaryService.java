@@ -154,12 +154,7 @@ public class SkinDiaryService {
     @Transactional
     public SkinDiaryResponse updateDiary(UUID memberUuid, Long diaryId, SkinDiaryRequest request) {
 
-        SkinDiary skinDiary = skinDiaryRepository.findById(diaryId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.DIARY_NOT_FOUND));
-
-        if (!skinDiary.getMember().getUuid().equals(memberUuid)) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED);
-        }
+        SkinDiary skinDiary = skinDiaryRepository.findOwnedById(diaryId, memberUuid);
 
         skinDiary.updateDiary(
                 request.skinScore(),
@@ -199,12 +194,7 @@ public class SkinDiaryService {
     @Transactional
     public void deleteDiary(UUID memberUuid, Long diaryId) {
 
-        SkinDiary skinDiary = skinDiaryRepository.findById(diaryId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.DIARY_NOT_FOUND));
-
-        if (!skinDiary.getMember().getUuid().equals(memberUuid)) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED);
-        }
+        SkinDiary skinDiary = skinDiaryRepository.findOwnedById(diaryId, memberUuid);
 
         // SkinAnalysis가 있으면 FK 제약으로 SkinDiary 삭제가 실패하므로 먼저 삭제
         skinAnalysisRepository.deleteBySkinDiary(skinDiary);

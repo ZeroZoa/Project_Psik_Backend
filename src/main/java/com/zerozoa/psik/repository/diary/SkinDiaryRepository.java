@@ -2,6 +2,8 @@ package com.zerozoa.psik.repository.diary;
 
 import com.zerozoa.psik.domain.diary.SkinDiary;
 import com.zerozoa.psik.domain.member.Member;
+import com.zerozoa.psik.global.exception.BusinessException;
+import com.zerozoa.psik.global.exception.ErrorCode;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -21,6 +23,16 @@ public interface SkinDiaryRepository extends JpaRepository<SkinDiary, Long> {
 
     //특정 회원의 특정 날짜(자정 Instant) 다이어리 단건 조회
     Optional<SkinDiary> findByMemberAndRecordDate(Member member, Instant recordDate);
+
+    // 다이어리 조회 + 소유자 검증 — 없으면 DIARY_NOT_FOUND, 내 것이 아니면 ACCESS_DENIED
+    default SkinDiary findOwnedById(Long diaryId, UUID memberUuid) {
+        SkinDiary diary = findById(diaryId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DIARY_NOT_FOUND));
+        if (!diary.isOwner(memberUuid)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
+        return diary;
+    }
 
     //해당 날짜 다이어리 작성 여부 확인 (중복 작성 방지)
     boolean existsByMemberAndRecordDate(Member member, Instant recordDate);
