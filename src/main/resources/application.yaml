@@ -5,9 +5,9 @@ spring:
       sql:
         enabled: false
       pubsub:
-        # 기본값(라이브러리 자체 기본 executor/flow-control)에 맡겨두면 메시지가
-        # 발행은 성공하고도 onMessage() 콜백까지 전달이 지연/누락되는 현상을 진단할 수 없어
-        # 명시적으로 값을 지정해 통제권을 가져온다.
+        # parallel-pull-count를 늘리지 않으면 구독 스트림이 1개뿐이라, 연속 요청 시 메시지가 한 스트림에
+        # 몰려 두 번째 요청이 PENDING에서 멈춘다(무한 로딩 장애의 원인). 값을 줄이지 말 것.
+        # flow-control의 max-outstanding-element-count는 parallel-pull-count와 같은 값으로 맞춘다.
         subscriber:
           executor-threads: 4
           parallel-pull-count: 8

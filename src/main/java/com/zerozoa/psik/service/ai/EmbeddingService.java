@@ -19,10 +19,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class EmbeddingService {
 
-    // text-embedding-004 고정 출력 차원 — 모델 변경 시 이 상수만 수정
+    // gemini-embedding-2 고정 출력 차원 — 모델 변경 시 이 상수만 수정
     private static final int EMBEDDING_DIM = 768;
 
-    // text-embedding-004 토큰 한도(~2048 토큰) 초과 방지용 문자 수 상한선
+    // gemini-embedding-2 토큰 한도(~2048 토큰) 초과 방지용 문자 수 상한선
     // 한국어 1자는 약 1.5~2 토큰이므로 8,000자면 안전 구간
     private static final int MAX_TEXT_LENGTH = 8000;
 
@@ -36,7 +36,7 @@ public class EmbeddingService {
     private String embeddingUrl;
 
     /**
-     * 텍스트를 벡터로 변환 (Gemini text-embedding-004)
+     * 텍스트를 벡터로 변환 (Gemini gemini-embedding-2)
      * [RAG 개념] 임베딩(Embedding)이란 텍스트의 의미를 숫자 배열로 압축한 것.
      * "히알루론산은 보습에 좋다" → [0.12, -0.33, 0.87, ...] (768개 float)
      * 의미가 비슷한 문장일수록 배열 값이 유사해짐.

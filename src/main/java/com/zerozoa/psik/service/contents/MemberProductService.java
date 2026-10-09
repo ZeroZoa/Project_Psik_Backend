@@ -73,7 +73,7 @@ public class MemberProductService {
     }
 
     /**
-     * 샀어요 여부 + 총 샀어요 수 단일 쿼리 조회
+     * 샀어요 여부 + 총 샀어요 수 조회
      * @param memberUuid 조회할 회원의 UUID
      * @param productId 조회할 제품의 ID
      * @return owned(샀어요 여부), count(총 샀어요 수)

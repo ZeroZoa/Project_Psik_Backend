@@ -202,7 +202,7 @@ public class PostService {
     @Transactional
     public void deletePost(UUID memberUuid, Long postId) {
         Post post = findPostById(postId);
-        Member member = memberRepository.findByUuidOrThrow(memberUuid); // ← 추가
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
         // 관리자이거나 작성자인 경우에만 삭제 허용
         if (member.getRole() != Role.ADMIN && !post.isOwner(memberUuid)) {

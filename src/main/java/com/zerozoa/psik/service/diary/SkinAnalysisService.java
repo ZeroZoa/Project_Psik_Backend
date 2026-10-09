@@ -70,7 +70,7 @@ public class SkinAnalysisService {
             skinAnalysisRepository.flush();
         }
 
-        // 하루 분석 횟수 초과 확인 (이하 기존과 동일)
+        // 하루 분석 횟수 초과 확인
         Instant startOfDay = LocalDate.now(KST).atStartOfDay(KST).toInstant();
         Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS);
         long todayCount = skinAnalysisRepository.countTodayAnalysisByMember(
@@ -90,7 +90,7 @@ public class SkinAnalysisService {
                 .imageUrl(imageUrl)
                 .build();
 
-        // existsBySkinDiary 체크와 save 사이의 동시 요청으로
+        // 기존 분석 확인과 save 사이의 동시 요청으로
         // skin_diary_id 유니크 제약을 위반해도, 500이 아니라 비즈니스 예외로 변환
         try {
             skinAnalysisRepository.save(skinAnalysis);
