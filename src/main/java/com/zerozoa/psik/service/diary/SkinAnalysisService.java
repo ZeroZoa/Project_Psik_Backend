@@ -57,12 +57,7 @@ public class SkinAnalysisService {
     public SkinAnalysisResponse analyze(UUID memberUuid, Long diaryId, MultipartFile image) {
 
         // 다이어리 조회 + 소유자 검증
-        SkinDiary skinDiary = skinDiaryRepository.findById(diaryId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.DIARY_NOT_FOUND));
-
-        if (!skinDiary.getMember().getUuid().equals(memberUuid)) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED);
-        }
+        SkinDiary skinDiary = skinDiaryRepository.findOwnedById(diaryId, memberUuid);
 
         // 기존 분석 결과 확인 — COMPLETED/PENDING은 차단, FAILED는 재시도 허용
         Optional<SkinAnalysis> existing = skinAnalysisRepository.findBySkinDiary(skinDiary);
@@ -75,7 +70,7 @@ public class SkinAnalysisService {
             skinAnalysisRepository.flush();
         }
 
-        // 하루 분석 횟수 초과 확인 (이하 기존과 동일)
+        // 하루 분석 횟수 초과 확인
         Instant startOfDay = LocalDate.now(KST).atStartOfDay(KST).toInstant();
         Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS);
         long todayCount = skinAnalysisRepository.countTodayAnalysisByMember(
@@ -95,7 +90,7 @@ public class SkinAnalysisService {
                 .imageUrl(imageUrl)
                 .build();
 
-        // existsBySkinDiary 체크와 save 사이의 동시 요청으로
+        // 기존 분석 확인과 save 사이의 동시 요청으로
         // skin_diary_id 유니크 제약을 위반해도, 500이 아니라 비즈니스 예외로 변환
         try {
             skinAnalysisRepository.save(skinAnalysis);
@@ -129,12 +124,7 @@ public class SkinAnalysisService {
      */
     public SkinAnalysisResponse getAnalysis(UUID memberUuid, Long diaryId) {
 
-        SkinDiary skinDiary = skinDiaryRepository.findById(diaryId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.DIARY_NOT_FOUND));
-
-        if (!skinDiary.getMember().getUuid().equals(memberUuid)) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED);
-        }
+        SkinDiary skinDiary = skinDiaryRepository.findOwnedById(diaryId, memberUuid);
 
         SkinAnalysis skinAnalysis = skinAnalysisRepository.findBySkinDiary(skinDiary)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANALYSIS_NOT_FOUND));

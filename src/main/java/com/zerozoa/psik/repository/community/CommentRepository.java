@@ -17,20 +17,6 @@ import java.util.List;
  */
 public interface CommentRepository extends JpaRepository<Comment, Long> {
 
-    // 특정 게시글의 루트 댓글 조회 (대댓글 제외, 시간순) — fetch join으로 N+1 방지
-    @Query("SELECT c FROM Comment c " +
-            "JOIN FETCH c.member " +
-            "WHERE c.post = :post AND c.parent IS NULL " +
-            "ORDER BY c.createdAt ASC")
-    List<Comment> findRootCommentsByPost(@Param("post") Post post);
-
-    // 특정 루트 댓글의 대댓글 조회 (시간순) — fetch join으로 N+1 방지
-    @Query("SELECT c FROM Comment c " +
-            "JOIN FETCH c.member " +
-            "WHERE c.parent = :parent " +
-            "ORDER BY c.createdAt ASC")
-    List<Comment> findChildComments(@Param("parent") Comment parent);
-
     // 내가 작성한 댓글 전체 조회 (루트 + 대댓글, 최신순)
     @Query(
             value = "SELECT c FROM Comment c JOIN FETCH c.member JOIN FETCH c.post WHERE c.member = :member ORDER BY c.createdAt DESC",

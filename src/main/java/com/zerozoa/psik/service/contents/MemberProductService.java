@@ -42,8 +42,7 @@ public class MemberProductService {
             throw new BusinessException(ErrorCode.ALREADY_OWNED_PRODUCT);
         }
 
-        Member member = memberRepository.findByUuid(memberUuid)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
@@ -74,7 +73,7 @@ public class MemberProductService {
     }
 
     /**
-     * 샀어요 여부 + 총 샀어요 수 단일 쿼리 조회
+     * 샀어요 여부 + 총 샀어요 수 조회
      * @param memberUuid 조회할 회원의 UUID
      * @param productId 조회할 제품의 ID
      * @return owned(샀어요 여부), count(총 샀어요 수)

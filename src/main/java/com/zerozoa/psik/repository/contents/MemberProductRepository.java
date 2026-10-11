@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -18,9 +17,6 @@ public interface MemberProductRepository extends JpaRepository<MemberProduct, Lo
 
     // 보유 여부 확인 (중복 등록 방지)
     boolean existsByMember_UuidAndProduct_Id(UUID memberUuid, Long productId);
-
-    // 보유 제품 단건 조회 (삭제 시 사용)
-    Optional<MemberProduct> findByMember_UuidAndProduct_Id(UUID memberUuid, Long productId);
 
     // 내 보유 제품 목록 조회 — fetch join으로 product N+1 방지
     @Query("SELECT mp FROM MemberProduct mp JOIN FETCH mp.product WHERE mp.member.uuid = :memberUuid")

@@ -46,7 +46,7 @@ public class CommentService {
     @Transactional
     public CommentResponse createComment(UUID memberUuid, Long postId, CommentRequest request) {
         Post post = findPostById(postId);
-        Member member = findMemberByUuid(memberUuid);
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
         Comment parent = null;
         if (request.parentId() != null) {
@@ -86,7 +86,7 @@ public class CommentService {
      */
     public List<CommentResponse> getComments(Long postId, UUID memberUuid) {
         Post post = findPostById(postId);
-        Member member = (memberUuid != null) ? findMemberByUuid(memberUuid) : null;
+        Member member = (memberUuid != null) ? memberRepository.findByUuidOrThrow(memberUuid) : null;
 
         // 1. 게시글의 전체 댓글 한 번에 조회 (root + children, 쿼리 1번)
         List<Comment> allComments = commentRepository.findAllByPost(post);
@@ -136,7 +136,7 @@ public class CommentService {
 
         comment.updateContent(request.content());
 
-        Member member = findMemberByUuid(memberUuid);
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
         boolean likedByMe = commentLikeRepository.existsByCommentAndMember(comment, member);
 
         return CommentResponse.from(comment, likedByMe);
@@ -175,7 +175,7 @@ public class CommentService {
      * @return CommentResponse Page
      */
     public Page<CommentResponse> getMyComments(UUID memberUuid, Pageable pageable) {
-        Member member = findMemberByUuid(memberUuid);
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
         Page<Comment> comments = commentRepository.findAllByMemberOrderByCreatedAtDesc(member, pageable);
 
@@ -202,7 +202,7 @@ public class CommentService {
     @Transactional
     public boolean toggleLike(UUID memberUuid, Long commentId) {
         Comment comment = findCommentById(commentId);
-        Member member = findMemberByUuid(memberUuid);
+        Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
         //회원과 댓글을 조회하여 이미 좋아요한 회원이라면 좋아요 삭제, 아직 좋아요하지 않은 회원이라면 생성
         Optional<CommentLike> existingLike = commentLikeRepository.findByCommentAndMember(comment, member);
@@ -251,14 +251,4 @@ public class CommentService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
     }
 
-    /**
-     * 회원 조회
-     * @param memberUuid 조회할 Member의 UUID
-     * @throws BusinessException Member가 존재하지 않는 경우{@link ErrorCode#MEMBER_NOT_FOUND} 예외 발생
-     * @return Member
-     */
-    private Member findMemberByUuid(UUID memberUuid) {
-        return memberRepository.findByUuid(memberUuid)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
-    }
 }

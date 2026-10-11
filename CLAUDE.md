@@ -81,7 +81,7 @@ com.zerozoa.psik
 ### 토큰 저장 전략 (2026-09-12 개선)
 - **AccessToken**: 서버에 저장 안 함(stateless). URL 파라미터로 프론트에 전달하던 방식 제거 — 지금은 OAuth 리다이렉트 시 아무 토큰도 안 실음. 프론트가 로드 직후 `/api/auth/reissue`를 호출해 받아감(응답 body).
 - **RefreshToken**: DB(`refresh_tokens` 테이블) + httpOnly 쿠키 이중 저장. DB에 저장하는 이유는 로그아웃 시 즉시 무효화, 재발급 시 Rotation(RTR), 탈퇴 시 일괄 삭제가 필요하기 때문. `token` 컬럼엔 의도적으로 unique 제약 없음(JWT 특성상 충돌 확률 사실상 0 — 팀 논의 후 현상 유지 결정).
-- ⚠️ 알려진 리스크: Access/Refresh 토큰에 `typ` 클레임이 없어 RefreshToken을 Authorization 헤더에 넣어도 인증됨. 백로그 처리 예정 (아래 "알려진 기술 부채" 참고).
+- **토큰 타입 구분**: Access/Refresh 토큰은 `typ` 클레임(`ACCESS`/`REFRESH`)으로 구분. `JwtAuthenticationFilter`는 ACCESS만 인증하고, `AuthService.reissue`는 REFRESH만 받는다 (RefreshToken을 Authorization 헤더에 넣어도 401).
 
 ### RAG 파이프라인 (2가지 별도 흐름)
 1. **저장 시점**: 성분 등록/수정 시 `Ingredient.toEmbeddingText()` → Gemini 임베딩 → pgvector 저장. 임베딩 API 실패해도 예외를 삼켜 트랜잭션 롤백 안 시킴 (`/api/admin/ingredients/embed-all`로 재실행 가능).
@@ -90,14 +90,15 @@ com.zerozoa.psik
 
 ### 피부 이미지 분석 (Pub/Sub 비동기 처리)
 요청 접수와 실제 분석을 분리한 구조:
-1. **접수(동기)**: `SkinAnalysisService.analyze()` — 다이어리 소유자/재분석/하루 3회(KST) 제한 검증 후 이미지를 GCS에 저장하고 `SkinAnalysis`를 `PENDING` 상태로 즉시 저장. 이어서 `SkinAnalysisEventPublisher`가 `skin-analysis-requests` 토픽에 이벤트 발행. 발행 실패 시 `BusinessException`(unchecked)으로 전파시켜 트랜잭션과 함께 롤백 + 업로드 이미지 삭제.
-2. **처리(비동기)**: `SkinAnalysisWorker`가 `skin-analysis-requests-sub` 구독을 `@PostConstruct`에서 등록해 메시지를 수신. Chain-of-Thought 프롬프트로 Gemini Vision 호출 전, Scrimage로 512x512 JPEG 압축.
-3. **멱등성**: Pub/Sub은 at-least-once라 메시지가 중복 도착할 수 있어 `SkinAnalysisTxOps.isPending()`으로 이미 처리된 건 스킵. ⚠️ 단, 체크와 상태 변경 사이 원자성이 없어 진짜 동시 배달(같은 메시지 두 컨슈머가 동시 처리)까지는 못 막음 — 기술 부채 참고.
-4. **상태 전이**: `PENDING` → 성공 시 `SkinAnalysisTxOps.markCompleted()`, 얼굴 미검출(`FACE_NOT_DETECTED`) 또는 그 외 예외 시 `markFailed()` + GCS 이미지 삭제. 각 메서드가 독립 트랜잭션이라 실패 처리가 다른 롤백에 휩쓸리지 않음.
-5. 프론트는 `SkinAnalysisProvider`가 폴링으로 상태 변화를 감지.
+1. **접수(동기)**: `SkinAnalysisService.analyze()` — 다이어리 소유자/재분석/하루 3회(KST) 제한 검증 후 이미지를 GCS에 저장하고 `SkinAnalysis`를 `PENDING` 상태로 즉시 저장. 이어서 `SkinAnalysisEventPublisher`가 `skin-analysis-requests` 토픽에 이벤트 발행. 발행 실패 시 `BusinessException`(unchecked)으로 전파시켜 트랜잭션과 함께 롤백 + 업로드 이미지 삭제. ⚠️ 발행이 `@Transactional` 안에서 일어나 커밋보다 먼저 나갈 수 있음 — 기술 부채 참고.
+2. **처리(비동기)**: `SkinAnalysisWorker`가 `skin-analysis-requests-sub` 구독을 `@PostConstruct`에서 등록해 메시지를 수신. Gemini Vision은 `responseSchema` 기반 structured output(`faceDetected` + 점수 4종 + `summary`)으로 호출하며, 호출 전 Scrimage로 512x512 JPEG 압축. 전용 스레드풀(4 + 대기열 4)에서 처리하고 한 번의 시도는 60초로 제한.
+   - 구독 설정 `parallel-pull-count: 8`이 핵심: 이 값이 작으면 구독 스트림이 1개뿐이라 연속 요청 시 두 번째 요청이 PENDING에 고착된다(과거 무한 로딩 장애의 원인). 줄이지 말 것.
+3. **멱등성**: Pub/Sub은 at-least-once라 메시지가 중복 도착할 수 있어 `SkinAnalysisTxOps.check()`로 이미 처리된 건(`ALREADY_DONE`)은 스킵하고, 접수 후 5분이 지난 건(`EXPIRED`)은 처리 없이 FAILED로 종료. `markCompleted`/`markFailed`는 PENDING일 때만 상태를 바꾼다(타임아웃 뒤 늦게 도착한 결과가 덮어쓰는 것 방지). ⚠️ 체크와 상태 변경이 한 트랜잭션이 아니라 진짜 동시 배달은 못 막음 — 기술 부채 참고.
+4. **상태 전이와 ack/nack**: `PENDING` → 성공 시 `markCompleted()`, 얼굴 미검출 또는 그 외 예외 시 `markFailed()` + GCS 이미지 삭제 후 ack. 깨진 JSON은 ack로 폐기, 워커 풀 포화나 DB 장애처럼 일시적인 처리 실패만 nack(재전달). 각 메서드가 독립 트랜잭션이라 실패 처리가 다른 롤백에 휩쓸리지 않음.
+5. 프론트는 `SkinAnalysisProvider`가 2초 간격 최대 30회 폴링으로 상태 변화를 감지.
 
 ### 이미지 처리
-`FileStorageService` 인터페이스 → `@Profile("prod")`: GcsFileStorageService, `@Profile("!prod")`: LocalFileStorageService. 업로드 시 Scrimage로 600x600 WebP 변환 후 저장. 확장자는 검증만 하고 실제로는 항상 WebP로 재인코딩(악성 파일 방어 겸함).
+`FileStorageService` 인터페이스 → `@Profile("prod")`: GcsFileStorageService, `@Profile("local")`: LocalFileStorageService. 업로드 시 Scrimage로 600x600 WebP 변환 후 저장. 확장자는 검증만 하고 실제로는 항상 WebP로 재인코딩(악성 파일 방어 겸함).
 
 ### 탈퇴 회원 처리
 Ghost User 패턴(UUID: `00000000-0000-0000-0000-000000000000`). 순서: 좋아요 삭제(unique 제약으로 Ghost 교체 불가) → 보유제품 삭제 → 스킨다이어리 삭제 → 커뮤니티 익명화(`@Modifying` 벌크 업데이트) → 토큰 삭제 → Hard Delete.
@@ -108,10 +109,10 @@ Ghost User 패턴(UUID: `00000000-0000-0000-0000-000000000000`). 순서: 좋아�
 ## Core Rules
 
 - DTO는 Java **record** + Bean Validation 사용 (`@NotBlank`, `@Size`, `@NotNull`) — 예: `IngredientCreateRequest`
-- 예외는 항상 `BusinessException(ErrorCode.XXX, "선택적 메시지")` — 커스텀 예외 클래스를 새로 만들지 않는다. 새 에러 케이스는 `ErrorCode` enum에 추가.
+- 예외는 항상 `BusinessException(ErrorCode.XXX, "선택적 메시지")` — 커스텀 예외 클래스를 새로 만들지 않는다. 새 에러 케이스는 `ErrorCode` enum에 추가. 선택적 메시지는 `GlobalExceptionHandler`가 **응답 body의 `message`에 그대로 내보내므로** 사용자에게 보여도 되는 문구만 넣는다(URL·내부 정보 금지).
 - 컨트롤러는 `ResponseEntity<T>`를 직접 반환한다. **커스텀 응답 래퍼(`ApiResponse` 등)는 존재하지 않음 — 만들어내지 말 것.**
 - 서비스는 `@RequiredArgsConstructor` 생성자 주입 + 클래스 레벨 `@Transactional(readOnly = true)`, 쓰기 메서드에만 메서드 레벨 `@Transactional` 추가.
-- 조회 헬퍼 메서드는 `findXById`/`findXByUuid` 네이밍으로 private 메서드화하고 `orElseThrow(() -> new BusinessException(ErrorCode.X_NOT_FOUND))` 패턴을 따른다 (`PostService.findPostById` 등 참고).
+- 조회 + `orElseThrow(NOT_FOUND)` 헬퍼: 여러 서비스(3곳 이상)에서 같은 정책으로 반복되면 repository `default` 메서드로 통합한다 (`MemberRepository.findByUuidOrThrow`, `SkinDiaryRepository.findOwnedById`). 1~2곳에서만 쓰면 서비스의 `findXById`/`findXByUuid` private 메서드로 두는 기존 방식을 따른다 (`PostService.findPostById` 등 참고). 서비스 단위 테스트에서 repository를 목으로 만들면 `default` 메서드는 null을 반환하므로 스텁하거나 `mock(Repo.class, CALLS_REAL_METHODS)`로 검증한다.
 - 로깅은 `@Slf4j` + `log.info("[Domain] 액션 설명 - key={}", value)` 형식 (예: `log.info("[Admin] 성분 생성 완료 - id={}, name={}", ...)`).
 - 컨트롤러엔 Swagger 어노테이션(`@Operation`, `@Tag`) 필수.
 
@@ -128,7 +129,7 @@ JetBrains(IntelliJ) MCP 도구가 세션에 연결되어 있다면, 단순 열�
 
 ## 테스트 전략
 
-**현재 상태**: 테스트 커버리지 사실상 없음 (`PsikApplicationTests`만 존재, 컨텍스트 로딩 확인용 스모크 테스트 수준).
+**현재 상태**: 커버리지는 낮음. 단위 테스트는 `SkinAnalysisWorker`(ack/nack/실패 처리), `SkinAnalysisTxOps`(check 3분기, 상태 가드), `GlobalExceptionHandler`(메시지), repository `default` 메서드(`findByUuidOrThrow`, `findOwnedById`)에 있다. `PsikApplicationTests`는 컨텍스트 로딩 스모크 테스트로 **로컬 PostgreSQL(localhost:5432)이 떠 있어야** 통과한다. DB 없이 돌릴 때는 `./gradlew test --tests "패키지.*"`로 범위를 지정한다.
 
 **원칙**: 전면적인 테스트 인프라 구축보다, 새 기능/버그 수정 시 해당 핵심 로직에 대한 단위 테스트를 최소 1개는 같이 작성하는 것을 목표로 점진적으로 채워나간다.
 
@@ -159,7 +160,7 @@ JetBrains(IntelliJ) MCP 도구가 세션에 연결되어 있다면, 단순 열�
 - 자주 보는 에러:
   - `GEMINI_RATE_LIMIT_EXCEEDED` — Gemini API 쿼터 초과, 재시도 필요
   - `INVALID_TOKEN` — JWT 서명/만료 문제, `JwtAuthenticationFilter` 로그 확인
-  - `NonUniqueResultException` 관련 — "알려진 기술 부채" 1번(토큰 unique 제약 없음) 참고
+  - `NonUniqueResultException` 관련 — "토큰 저장 전략"의 `token` 컬럼 unique 제약 없음 결정 참고
 
 ## 브랜치 전략 & 배포
 
@@ -176,9 +177,9 @@ JetBrains(IntelliJ) MCP 도구가 세션에 연결되어 있다면, 단순 열�
 
 ## 알려진 기술 부채 (우선순위 순, 취업시즌 이후 착수 예정)
 
-1. JWT Access/Refresh 토큰에 타입 클레임 없음 (RefreshToken을 Access처럼 재사용 가능)
-2. `SkinAnalysisWorker`의 멱등성 체크(`isPending`)가 실제 상태 변경과 원자적이지 않음 — Pub/Sub 중복 배달 시 compare-and-swap 필요
-3. Gemini 호출(`GeminiService`, `EmbeddingService`)에 WebClient 타임아웃 미설정
+1. `SkinAnalysisWorker`의 멱등성 체크(`check`)가 실제 상태 변경과 한 트랜잭션이 아님 — PENDING 전이 가드는 있으나, Pub/Sub 중복 동시 배달 시 compare-and-swap(`UPDATE ... WHERE status = 'PENDING'` 영향 행 수 체크) 필요
+2. `EmbeddingService`의 WebClient에 타임아웃 미설정 (`GeminiService`는 20초 적용됨) — 임베딩 응답이 지연되면 `.block()`이 요청 스레드를 무기한 점유
+3. Pub/Sub 발행이 `SkinAnalysisService.analyze()`의 트랜잭션 커밋보다 먼저 나갈 수 있음(워커가 행을 못 찾으면 `ALREADY_DONE`으로 ack → PENDING 고착, 재업로드도 차단). 해결: afterCommit 발행 + 오래된 PENDING을 FAILED로 정리하는 스위퍼(`@Scheduled`)
 4. `/api/chat`에 요청 빈도 제한 없음 (SkinAnalysis는 하루 3회 제한 있음)
 5. `AdminService.embedAll()` 동기 순차 처리 + `Thread.sleep(150)` — 성분 많아지면 요청 스레드 장시간 점유
 6. 공개 페이징 API 최대 size 캡 없음

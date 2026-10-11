@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import java.time.Instant; // LocalDate -> Instant로 변경
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 피부 다이어리 엔티티
@@ -101,5 +102,10 @@ public class SkinDiary extends BaseTimeEntity {
         if (newCosmetics != null) {
             this.usedCosmetics.addAll(newCosmetics);
         }
+    }
+
+    /** 소유자 검증 — Post/Comment와 동일하게 UUID로 비교 */
+    public boolean isOwner(UUID memberUuid) {
+        return this.member.getUuid().equals(memberUuid);
     }
 }
