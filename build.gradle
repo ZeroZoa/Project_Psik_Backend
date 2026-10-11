@@ -68,4 +68,8 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// CI에는 DB가 없어 컨텍스트 로딩 테스트는 제외 (로컬에서는 DB가 있으면 그대로 실행)
+	if (System.getenv('CI')) {
+		exclude '**/PsikApplicationTests*'
+	}
 }
