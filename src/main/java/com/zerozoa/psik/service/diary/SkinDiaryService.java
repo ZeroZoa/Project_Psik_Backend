@@ -1,6 +1,7 @@
 package com.zerozoa.psik.service.diary;
 
 import com.zerozoa.psik.domain.contents.Product;
+import com.zerozoa.psik.domain.diary.AnalysisStatus;
 import com.zerozoa.psik.domain.diary.SkinDiary;
 import com.zerozoa.psik.domain.diary.SkinDiaryProduct;
 import com.zerozoa.psik.domain.member.Member;
@@ -8,10 +9,12 @@ import com.zerozoa.psik.dto.diary.SkinDiaryRequest;
 import com.zerozoa.psik.dto.diary.SkinDiaryResponse;
 import com.zerozoa.psik.global.exception.BusinessException;
 import com.zerozoa.psik.global.exception.ErrorCode;
+import com.zerozoa.psik.global.util.AfterCommit;
 import com.zerozoa.psik.repository.contents.ProductRepository;
 import com.zerozoa.psik.repository.diary.SkinAnalysisRepository;
 import com.zerozoa.psik.repository.diary.SkinDiaryRepository;
 import com.zerozoa.psik.repository.member.MemberRepository;
+import com.zerozoa.psik.service.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -37,6 +40,7 @@ public class SkinDiaryService {
     private final SkinAnalysisRepository skinAnalysisRepository;
     private final MemberRepository memberRepository;
     private final ProductRepository productRepository;
+    private final FileStorageService fileStorageService;
 
     /**
      * 다이어리 작성
@@ -196,9 +200,19 @@ public class SkinDiaryService {
 
         SkinDiary skinDiary = skinDiaryRepository.findOwnedById(diaryId, memberUuid);
 
+        // 삭제할 분석 사진 URL을 먼저 확보 (행을 지우면 URL을 알 수 없음)
+        // FAILED는 워커가 이미 사진을 삭제했으므로 제외
+        List<String> imageUrls = skinAnalysisRepository.findBySkinDiary(skinDiary)
+                .filter(a -> a.getAnalysisStatus() != AnalysisStatus.FAILED)
+                .map(a -> List.of(a.getImageUrl()))
+                .orElse(List.of());
+
         // SkinAnalysis가 있으면 FK 제약으로 SkinDiary 삭제가 실패하므로 먼저 삭제
         skinAnalysisRepository.deleteBySkinDiary(skinDiary);
         skinDiaryRepository.delete(skinDiary);
+
+        // DB 삭제가 커밋된 뒤에 사진 삭제 — 롤백되면 사진만 사라지는 사고를 막는다
+        AfterCommit.run(() -> fileStorageService.deleteAll(imageUrls));
     }
 
     /**
