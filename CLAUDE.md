@@ -61,7 +61,7 @@ com.zerozoa.psik
     ├── chat       (RagService — chat 전용이라 도메인 패키지로 분리)
     ├── community  (CommentService, PostService)
     ├── contents   (IngredientService, ProductService, MemberProductService)
-    ├── diary      (SkinDiaryService, SkinAnalysisService, SkinAnalysisEventPublisher, SkinAnalysisTxOps, SkinAnalysisWorker)
+    ├── diary      (SkinDiaryService, SkinAnalysisService, SkinAnalysisEventPublisher, SkinAnalysisTxOps, SkinAnalysisWorker, SkinAnalysisFailureHandler, SkinAnalysisSweeper)
     ├── inquiry    (InquiryService)
     ├── member     (MemberService)
     └── storage    (FileStorageService, GcsFileStorageService, LocalFileStorageService — 여러 도메인이 공유하는 파일 저장 유틸리티)
@@ -90,12 +90,13 @@ com.zerozoa.psik
 
 ### 피부 이미지 분석 (Pub/Sub 비동기 처리)
 요청 접수와 실제 분석을 분리한 구조:
-1. **접수(동기)**: `SkinAnalysisService.analyze()` — 다이어리 소유자/재분석/하루 3회(KST) 제한 검증 후 이미지를 GCS에 저장하고 `SkinAnalysis`를 `PENDING` 상태로 즉시 저장. 이어서 `SkinAnalysisEventPublisher`가 `skin-analysis-requests` 토픽에 이벤트 발행. 발행 실패 시 `BusinessException`(unchecked)으로 전파시켜 트랜잭션과 함께 롤백 + 업로드 이미지 삭제. ⚠️ 발행이 `@Transactional` 안에서 일어나 커밋보다 먼저 나갈 수 있음 — 기술 부채 참고.
+1. **접수(동기)**: `SkinAnalysisService.analyze()` — 다이어리 소유자/재분석/하루 3회(KST) 제한 검증 후 이미지를 GCS에 저장하고 `SkinAnalysis`를 `PENDING` 상태로 즉시 저장. 이어서 **트랜잭션이 커밋된 뒤**(`AfterCommit.run`) `SkinAnalysisEventPublisher`가 `skin-analysis-requests` 토픽에 이벤트 발행. 커밋 전에 발행하면 워커가 아직 저장되지 않은 행을 못 찾아 메시지가 소실되기 때문. 발행이 실패하면 `SkinAnalysisFailureHandler`가 FAILED로 전환하고 사진을 삭제해 사용자가 재업로드할 수 있게 한다(응답은 이미 202로 나간 뒤라 곧 "분석 실패"로 보임).
 2. **처리(비동기)**: `SkinAnalysisWorker`가 `skin-analysis-requests-sub` 구독을 `@PostConstruct`에서 등록해 메시지를 수신. Gemini Vision은 `responseSchema` 기반 structured output(`faceDetected` + 점수 4종 + `summary`)으로 호출하며, 호출 전 Scrimage로 512x512 JPEG 압축. 전용 스레드풀(4 + 대기열 4)에서 처리하고 한 번의 시도는 60초로 제한.
    - 구독 설정 `parallel-pull-count: 8`이 핵심: 이 값이 작으면 구독 스트림이 1개뿐이라 연속 요청 시 두 번째 요청이 PENDING에 고착된다(과거 무한 로딩 장애의 원인). 줄이지 말 것.
 3. **멱등성**: Pub/Sub은 at-least-once라 메시지가 중복 도착할 수 있어 `SkinAnalysisTxOps.check()`로 이미 처리된 건(`ALREADY_DONE`)은 스킵하고, 접수 후 5분이 지난 건(`EXPIRED`)은 처리 없이 FAILED로 종료. `markCompleted`/`markFailed`는 PENDING일 때만 상태를 바꾼다(타임아웃 뒤 늦게 도착한 결과가 덮어쓰는 것 방지). ⚠️ 체크와 상태 변경이 한 트랜잭션이 아니라 진짜 동시 배달은 못 막음 — 기술 부채 참고.
 4. **상태 전이와 ack/nack**: `PENDING` → 성공 시 `markCompleted()`, 얼굴 미검출 또는 그 외 예외 시 `markFailed()` + GCS 이미지 삭제 후 ack. 깨진 JSON은 ack로 폐기, 워커 풀 포화나 DB 장애처럼 일시적인 처리 실패만 nack(재전달). 각 메서드가 독립 트랜잭션이라 실패 처리가 다른 롤백에 휩쓸리지 않음.
 5. 프론트는 `SkinAnalysisProvider`가 2초 간격 최대 30회 폴링으로 상태 변화를 감지.
+6. **안전망**: `SkinAnalysisSweeper`가 1분마다 10분 넘게 PENDING인 분석을 FAILED로 정리한다(메시지 유실 등으로 고착된 건 구제). `SkinAnalysisTxOps.markFailed`는 `afterCommit`에서도 호출되므로 `REQUIRES_NEW`로 선언되어 있다(커밋 직후 `REQUIRED`로 호출하면 끝난 트랜잭션에 참여해 변경이 저장되지 않음).
 
 ### 이미지 처리
 `FileStorageService` 인터페이스 → `@Profile("prod")`: GcsFileStorageService, `@Profile("local")`: LocalFileStorageService. 업로드 시 Scrimage로 600x600 WebP 변환 후 저장. 확장자는 검증만 하고 실제로는 항상 WebP로 재인코딩(악성 파일 방어 겸함).
@@ -179,8 +180,7 @@ JetBrains(IntelliJ) MCP 도구가 세션에 연결되어 있다면, 단순 열�
 
 1. `SkinAnalysisWorker`의 멱등성 체크(`check`)가 실제 상태 변경과 한 트랜잭션이 아님 — PENDING 전이 가드는 있으나, Pub/Sub 중복 동시 배달 시 compare-and-swap(`UPDATE ... WHERE status = 'PENDING'` 영향 행 수 체크) 필요
 2. `EmbeddingService`의 WebClient에 타임아웃 미설정 (`GeminiService`는 20초 적용됨) — 임베딩 응답이 지연되면 `.block()`이 요청 스레드를 무기한 점유
-3. Pub/Sub 발행이 `SkinAnalysisService.analyze()`의 트랜잭션 커밋보다 먼저 나갈 수 있음(워커가 행을 못 찾으면 `ALREADY_DONE`으로 ack → PENDING 고착, 재업로드도 차단). 해결: afterCommit 발행 + 오래된 PENDING을 FAILED로 정리하는 스위퍼(`@Scheduled`)
-4. `/api/chat`에 요청 빈도 제한 없음 (SkinAnalysis는 하루 3회 제한 있음)
-5. `AdminService.embedAll()` 동기 순차 처리 + `Thread.sleep(150)` — 성분 많아지면 요청 스레드 장시간 점유
-6. 공개 페이징 API 최대 size 캡 없음
-7. `PostService.deletePost` — GCS 삭제 후 DB 삭제 순서 (update 흐름과 반대)
+3. `/api/chat`에 요청 빈도 제한 없음 (SkinAnalysis는 하루 3회 제한 있음)
+4. `AdminService.embedAll()` 동기 순차 처리 + `Thread.sleep(150)` — 성분 많아지면 요청 스레드 장시간 점유
+5. 공개 페이징 API 최대 size 캡 없음
+6. `PostService.updatePost/deletePost` — GCS 삭제가 DB 커밋 전에 실행됨(롤백되면 사진만 사라짐). `AfterCommit.run`으로 바꾸면 해결 (다이어리 삭제·회원 탈퇴는 이미 적용됨)

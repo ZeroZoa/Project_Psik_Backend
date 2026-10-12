@@ -9,6 +9,7 @@ import com.zerozoa.psik.repository.diary.SkinAnalysisRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
@@ -63,7 +64,9 @@ public class SkinAnalysisTxOps {
         log.info("[SkinAnalysis] 분석 완료 - skinAnalysisId={}", skinAnalysisId);
     }
 
-    @Transactional
+    // REQUIRES_NEW: 트랜잭션 커밋 직후(afterCommit)에도 호출되는데, 그 시점에 REQUIRED로 호출하면
+    // 이미 끝난 트랜잭션에 참여해 버려 변경이 저장되지 않는다. 항상 새 트랜잭션으로 커밋한다.
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markFailed(Long skinAnalysisId) {
         skinAnalysisRepository.findById(skinAnalysisId)
                 .filter(a -> a.getAnalysisStatus() == AnalysisStatus.PENDING)

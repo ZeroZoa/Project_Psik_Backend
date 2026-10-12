@@ -7,6 +7,7 @@ import com.zerozoa.psik.dto.diary.SkinAnalysisRequestedEvent;
 import com.zerozoa.psik.dto.diary.SkinAnalysisResponse;
 import com.zerozoa.psik.global.exception.BusinessException;
 import com.zerozoa.psik.global.exception.ErrorCode;
+import com.zerozoa.psik.global.util.AfterCommit;
 import com.zerozoa.psik.repository.diary.SkinAnalysisRepository;
 
 import com.zerozoa.psik.repository.diary.SkinDiaryRepository;
@@ -39,6 +40,7 @@ public class SkinAnalysisService {
     private final SkinDiaryRepository skinDiaryRepository;
     private final FileStorageService fileStorageService;
     private final SkinAnalysisEventPublisher eventPublisher;
+    private final SkinAnalysisFailureHandler failureHandler;
 
     /**
      * 피부 이미지 업로드 및 분석 요청 접수
@@ -99,14 +101,11 @@ public class SkinAnalysisService {
             throw new BusinessException(ErrorCode.ANALYSIS_ALREADY_EXISTS);
         }
 
-        // Pub/Sub 발행 실패 시에도 트랜잭션이 롤백되도록 BusinessException(unchecked)으로 전파됨
-        // (SkinAnalysisEventPublisher 참고) — 여기서 이미지 파일 정리까지 같이 처리
-        try {
-            eventPublisher.publish(new SkinAnalysisRequestedEvent(skinAnalysis.getId(), imageUrl, "image/jpeg"));
-        } catch (BusinessException e) {
-            fileStorageService.delete(imageUrl);
-            throw e;
-        }
+        // 커밋된 뒤에 발행한다 — 커밋 전에 발행하면 워커가 아직 저장되지 않은 행을 찾지 못해
+        // 메시지가 조용히 버려지고 PENDING으로 고착될 수 있다
+        SkinAnalysisRequestedEvent event =
+                new SkinAnalysisRequestedEvent(skinAnalysis.getId(), imageUrl, "image/jpeg");
+        AfterCommit.run(() -> publishOrFail(event));
 
         log.info("[SkinAnalysis] 분석 요청 접수 - diaryId={}, skinAnalysisId={}", diaryId, skinAnalysis.getId());
 
@@ -130,5 +129,17 @@ public class SkinAnalysisService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANALYSIS_NOT_FOUND));
 
         return SkinAnalysisResponse.from(skinAnalysis);
+    }
+
+    /**
+     * 커밋 후 발행. 발행이 실패하면 행은 이미 PENDING으로 커밋된 상태이므로
+     * FAILED로 바꾸고 사진을 정리해 사용자가 다시 업로드할 수 있게 한다.
+     */
+    private void publishOrFail(SkinAnalysisRequestedEvent event) {
+        try {
+            eventPublisher.publish(event);
+        } catch (BusinessException e) {
+            failureHandler.fail(event.skinAnalysisId(), event.imageUrl());
+        }
     }
 }

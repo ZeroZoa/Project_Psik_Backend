@@ -50,7 +50,8 @@ class SkinAnalysisWorkerTest {
     @BeforeEach
     void setUp() {
         worker = new SkinAnalysisWorker(
-                pubSubTemplate, new ObjectMapper(), txOps, geminiService, fileStorageService);
+                pubSubTemplate, new ObjectMapper(), txOps, geminiService, fileStorageService,
+                new SkinAnalysisFailureHandler(txOps, fileStorageService));
     }
 
     @Test

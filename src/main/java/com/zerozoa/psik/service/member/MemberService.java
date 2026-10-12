@@ -6,6 +6,7 @@ import com.zerozoa.psik.dto.member.ProfileSetupRequest;
 import com.zerozoa.psik.dto.member.SkinConcernUpdateRequest;
 import com.zerozoa.psik.global.exception.BusinessException;
 import com.zerozoa.psik.global.exception.ErrorCode;
+import com.zerozoa.psik.global.util.AfterCommit;
 import com.zerozoa.psik.repository.community.CommentLikeRepository;
 import com.zerozoa.psik.repository.community.CommentRepository;
 import com.zerozoa.psik.repository.community.PostLikeRepository;
@@ -17,12 +18,14 @@ import com.zerozoa.psik.repository.diary.SkinDiaryRepository;
 import com.zerozoa.psik.repository.inquiry.InquiryRepository;
 import com.zerozoa.psik.repository.member.MemberRepository;
 import com.zerozoa.psik.repository.auth.RefreshTokenRepository;
+import com.zerozoa.psik.service.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -44,6 +47,7 @@ public class MemberService {
     private final CommentRepository commentRepository;
     private final InquiryRepository inquiryRepository;
     private final SkinDiaryProductRepository skinDiaryProductRepository;
+    private final FileStorageService fileStorageService;
 
     /**
      * 소셜 로그인 처리 (로그인 & 회원가입 겸용)
@@ -203,6 +207,9 @@ public class MemberService {
         memberProductRepository.deleteAllByMember(member);
 
         // 3. 스킨 다이어리 삭제
+        //    분석 행을 지우면 사진 URL을 알 수 없으므로 먼저 확보한다
+        List<String> analysisImageUrls = skinAnalysisRepository.findImageUrlsByMember(member);
+
         //    SkinAnalysis → SkinDiary 순서로 삭제 (FK 제약)
         skinAnalysisRepository.deleteAllBySkinDiary_Member(member);
         skinDiaryRepository.deleteDietByMemberId(member.getId());
@@ -219,6 +226,9 @@ public class MemberService {
 
         // 6. 회원 Hard Delete
         memberRepository.delete(member);
+
+        // 7. 탈퇴가 커밋된 뒤에 분석 사진 삭제 — 롤백되면 사진은 그대로 남는다
+        AfterCommit.run(() -> fileStorageService.deleteAll(analysisImageUrls));
 
         log.warn("[Withdraw] Member Deleted: uuid={}", memberUuid);
     }
