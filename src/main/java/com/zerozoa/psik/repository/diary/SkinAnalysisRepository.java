@@ -1,5 +1,6 @@
 package com.zerozoa.psik.repository.diary;
 
+import com.zerozoa.psik.domain.diary.AnalysisStatus;
 import com.zerozoa.psik.domain.diary.SkinAnalysis;
 import com.zerozoa.psik.domain.diary.SkinDiary;
 import com.zerozoa.psik.domain.member.Member;
@@ -27,6 +28,9 @@ public interface SkinAnalysisRepository extends JpaRepository<SkinAnalysis, Long
     long countTodayAnalysisByMember(@Param("member") Member member,
                                     @Param("startOfDay") Instant startOfDay,
                                     @Param("endOfDay") Instant endOfDay);
+
+    // 특정 상태이면서 기준 시각 이전에 생성된 분석 조회 — 오래된 PENDING 정리용
+    List<SkinAnalysis> findByAnalysisStatusAndCreatedAtBefore(AnalysisStatus status, Instant before);
 
     // FAILED 건 재분석 시 기존 row 제거용
     void deleteBySkinDiary(SkinDiary skinDiary);
