@@ -39,6 +39,7 @@ public class SkinAnalysisWorker {
     private final SkinAnalysisTxOps txOps;
     private final GeminiService geminiService;
     private final FileStorageService fileStorageService;
+    private final SkinAnalysisFailureHandler failureHandler;
 
     @Value("${gcp.pubsub.skin-analysis-subscription}")
     private String subscriptionName;
@@ -134,7 +135,6 @@ public class SkinAnalysisWorker {
     }
 
     private void fail(SkinAnalysisRequestedEvent event) {
-        txOps.markFailed(event.skinAnalysisId());
-        fileStorageService.delete(event.imageUrl());
+        failureHandler.fail(event.skinAnalysisId(), event.imageUrl());
     }
 }
