@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -35,4 +36,10 @@ public interface SkinAnalysisRepository extends JpaRepository<SkinAnalysis, Long
     @Modifying
     @Query("DELETE FROM SkinAnalysis sa WHERE sa.skinDiary.member = :member")
     void deleteAllBySkinDiary_Member(@Param("member") Member member);
+
+    // 회원 탈퇴 시 GCS 정리용 — FAILED는 워커가 이미 사진을 삭제했으므로 제외
+    // (분석 행을 지우기 전에 호출해야 URL을 얻을 수 있다)
+    @Query("SELECT sa.imageUrl FROM SkinAnalysis sa WHERE sa.skinDiary.member = :member " +
+            "AND sa.analysisStatus <> com.zerozoa.psik.domain.diary.AnalysisStatus.FAILED")
+    List<String> findImageUrlsByMember(@Param("member") Member member);
 }
