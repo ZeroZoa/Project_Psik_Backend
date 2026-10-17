@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.List;
  * parent가 null이면 최상위(루트) 댓글, null이 아니면 대댓글
  */
 @Entity
+@DynamicUpdate   // 댓글 수정이 좋아요 수를 옛날 값으로 덮어쓰지 않게
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "comment", indexes = {

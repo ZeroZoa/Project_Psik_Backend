@@ -10,6 +10,7 @@ import com.zerozoa.psik.dto.community.PostRequest;
 import com.zerozoa.psik.dto.community.PostResponse;
 import com.zerozoa.psik.global.exception.BusinessException;
 import com.zerozoa.psik.global.exception.ErrorCode;
+import com.zerozoa.psik.global.util.AfterCommit;
 import com.zerozoa.psik.repository.community.CommentLikeRepository;
 import com.zerozoa.psik.repository.community.CommentRepository;
 import com.zerozoa.psik.repository.community.PostLikeRepository;
@@ -68,7 +69,7 @@ public class PostService {
 
         if (images != null && !images.isEmpty()) {
             validateImageCount(images.size());
-            saveImages(post, images);
+            uploadImages(post, images).forEach(post::addImage);
         }
 
         Post savedPost = postRepository.save(post);
@@ -134,8 +135,9 @@ public class PostService {
      */
     @Transactional
     public PostResponse getPost(Long postId, UUID memberUuid) {
+        // 조회수는 DB에서 직접 올린 뒤에 글을 읽는다 (읽은 뒤 올리면 응답의 조회수가 옛날 값이 된다)
+        postRepository.increaseViewCount(postId);
         Post post = findPostById(postId);
-        post.increaseViewCount();
 
         // 비로그인 사용자는 likedByMe = false
         boolean likedByMe = false;
@@ -168,13 +170,11 @@ public class PostService {
         //글 수정
         post.update(request.title(), request.content());
 
-        // 기존 이미지 URL 미리 보관
-        List<String> oldImageUrls = post.getImages().stream()
-                .map(PostImage::getImageUrl)
-                .toList();
-
         if (images != null && !images.isEmpty()) {
             validateImageCount(images.size());
+
+            // 교체하고 나면 기존 URL을 알 수 없으므로 미리 보관
+            List<String> oldImageUrls = imageUrlsOf(post);
 
             // 1. 새 이미지 먼저 업로드 (실패해도 기존 파일 안전)
             List<PostImage> newPostImages = uploadImages(post, images);
@@ -182,8 +182,8 @@ public class PostService {
             // 2. 업로드 성공 후 DB 교체
             post.replaceImages(newPostImages);
 
-            // 3. 기존 파일 삭제 (업로드 성공 이후 → 파일 유실 방지)
-            fileStorageService.deleteAll(oldImageUrls);
+            // 3. 기존 파일은 DB 교체가 커밋된 뒤에 삭제 — 롤백되면 기존 파일이 그대로 남아야 한다
+            AfterCommit.run(() -> fileStorageService.deleteAll(oldImageUrls));
         }
 
         Member member = memberRepository.findByUuidOrThrow(memberUuid);
@@ -208,18 +208,16 @@ public class PostService {
             throw new BusinessException(ErrorCode.ACCESS_DENIED);
         }
 
-        List<String> imageUrls = post.getImages().stream()
-                .map(PostImage::getImageUrl)
-                .toList();
-
-        //이미지 삭제
-        fileStorageService.deleteAll(imageUrls);
+        List<String> imageUrls = imageUrlsOf(post);
 
         //Post관련 삭제
         commentLikeRepository.deleteAllByPost(post);
         commentRepository.deleteAllByPost(post);
         postLikeRepository.deleteAllByPost(post);
         postRepository.delete(post);
+
+        // DB 삭제가 커밋된 뒤에 이미지 삭제 — 롤백되면 사진은 그대로 남는다
+        AfterCommit.run(() -> fileStorageService.deleteAll(imageUrls));
     }
 
     /**
@@ -338,30 +336,16 @@ public class PostService {
     }
 
     /**
-     * 이미지 저장
-     * @param post 이미지를 저장할 글
-     * @param images 저장될 이미지
+     * 글에 연결된 이미지 URL 목록
      */
-    private void saveImages(Post post, List<MultipartFile> images) {
-        for (int i = 0; i < images.size(); i++) {
-            MultipartFile file = images.get(i);
-            if (file.isEmpty()) continue;
-
-            String imageUrl = fileStorageService.store(file, "posts");
-
-            PostImage postImage = PostImage.builder()
-                    .post(post)
-                    .imageUrl(imageUrl)
-                    .sortOrder(i)
-                    .originalFilename(file.getOriginalFilename())
-                    .build();
-
-            post.addImage(postImage);
-        }
+    private List<String> imageUrlsOf(Post post) {
+        return post.getImages().stream()
+                .map(PostImage::getImageUrl)
+                .toList();
     }
 
     /**
-     * 이미지 업로드 후 PostImage 리스트 반환 (DB 저장 없음, updatePost 전용)
+     * 이미지 업로드 후 PostImage 리스트 반환 (DB 저장 없음, createPost/updatePost 공용)
      * 업로드 도중 실패 시 이미 업로드된 파일을 정리하고 예외 재던짐
      */
     private List<PostImage> uploadImages(Post post, List<MultipartFile> images) {

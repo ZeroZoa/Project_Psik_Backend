@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.List;
  * 목록 조회 시 COUNT 서브쿼리 없이 바로 사용하기 위해 엔티티에 직접 관리
  */
 @Entity
+@DynamicUpdate   // 바뀐 컬럼만 UPDATE — 글 수정이 좋아요·조회수 같은 카운터를 옛날 값으로 덮어쓰지 않게
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "post", indexes = {
@@ -94,20 +96,6 @@ public class Post extends BaseTimeEntity {
     public void decreaseLikeCount() {
         if (this.likeCount > 0) this.likeCount--;
     }
-
-    public void increaseCommentCount() { this.commentCount++; }
-
-    /** 댓글 수는 0 미만으로 내려가지 않도록 보호 */
-    public void decreaseCommentCount() {
-        if (this.commentCount > 0) this.commentCount--;
-    }
-
-    /** 댓글 수 N개 일괄 감소 (댓글 삭제 시 루트+대댓글 한 번에 처리) */
-    public void decreaseCommentCount(int count) {
-        this.commentCount = Math.max(0, this.commentCount - count);
-    }
-
-    public void increaseViewCount() { this.viewCount++; }
 
     /** 소유자 검증 — Service에서 수정·삭제 권한 확인 시 UUID로 비교 */
     public boolean isOwner(java.util.UUID memberUuid) {
