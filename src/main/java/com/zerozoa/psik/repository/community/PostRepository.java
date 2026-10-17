@@ -2,15 +2,18 @@ package com.zerozoa.psik.repository.community;
 
 import com.zerozoa.psik.domain.community.Post;
 import com.zerozoa.psik.domain.member.Member;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 게시글 Repository
@@ -62,4 +65,10 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Post p SET p.member = :ghost WHERE p.member = :member")
     void anonymizeByMember(@Param("member") Member member, @Param("ghost") Member ghost);
+
+    // 좋아요 처리 동안 글 행을 잠가서(SELECT ... FOR UPDATE) 같은 글의 좋아요 요청을 한 줄로 세운다
+    // 트랜잭션 안에서 호출해야 하며, 락은 트랜잭션이 끝날 때(커밋/롤백) 풀린다
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Post p WHERE p.id = :id")
+    Optional<Post> findByIdForUpdate(@Param("id") Long id);
 }

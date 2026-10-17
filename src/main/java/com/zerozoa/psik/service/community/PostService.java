@@ -18,7 +18,6 @@ import com.zerozoa.psik.repository.member.MemberRepository;
 import com.zerozoa.psik.service.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -290,7 +289,10 @@ public class PostService {
      */
     @Transactional
     public boolean toggleLike(UUID memberUuid, Long postId) {
-        Post post = findPostById(postId);
+        // 글 행을 잠그고 조회한다 — 같은 글의 좋아요 요청이 순서대로 처리되어
+        // 중복 삽입 예외도, 좋아요 수 유실(읽고 → 더하고 → 쓰기)도 생기지 않는다
+        Post post = postRepository.findByIdForUpdate(postId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
         Member member = memberRepository.findByUuidOrThrow(memberUuid);
 
         //회원과 글을 조회하여 이미 좋아요한 회원이라면 좋아요 삭제, 아직 좋아요하지 않은 회원이라면 생성
@@ -302,18 +304,13 @@ public class PostService {
             return false;
         }
 
-        try {
-            PostLike postLike = PostLike.builder()
-                    .post(post)
-                    .member(member)
-                    .build();
-            postLikeRepository.save(postLike);
-            post.increaseLikeCount();
-            return true;
-        } catch (DataIntegrityViolationException e) {
-            // 동시 요청으로 이미 다른 요청이 좋아요를 등록함 -> 동시 요청에 대해 1개의 요청으로 처리
-            return true;
-        }
+        PostLike postLike = PostLike.builder()
+                .post(post)
+                .member(member)
+                .build();
+        postLikeRepository.save(postLike);
+        post.increaseLikeCount();
+        return true;
     }
 
     // ───────────────────── 내부 헬퍼 ─────────────────────
