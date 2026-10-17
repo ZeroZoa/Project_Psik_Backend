@@ -2,7 +2,9 @@ package com.zerozoa.psik.service.community;
 
 import com.zerozoa.psik.domain.community.Comment;
 import com.zerozoa.psik.domain.community.CommentLike;
+import com.zerozoa.psik.domain.community.Post;
 import com.zerozoa.psik.domain.member.Member;
+import com.zerozoa.psik.dto.community.CommentRequest;
 import com.zerozoa.psik.global.exception.BusinessException;
 import com.zerozoa.psik.global.exception.ErrorCode;
 import com.zerozoa.psik.repository.community.CommentLikeRepository;
@@ -16,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -99,5 +102,47 @@ class CommentServiceTest {
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.COMMENT_NOT_FOUND);
         verifyNoInteractions(commentLikeRepository);
+    }
+
+    // ───────────────────── 댓글 수 ─────────────────────
+
+    private static final Long POST_ID = 10L;
+
+    @Test
+    @DisplayName("createComment: 댓글 수는 엔티티가 아니라 DB에서 직접 올린다")
+    void createComment_increasesCommentCountInDb() {
+        // given
+        Post post = mock(Post.class);
+        Member member = mock(Member.class);
+        when(postRepository.findById(POST_ID)).thenReturn(Optional.of(post));
+        when(memberRepository.findByUuidOrThrow(memberUuid)).thenReturn(member);
+
+        // when
+        service.createComment(memberUuid, POST_ID, new CommentRequest("댓글", null));
+
+        // then
+        verify(commentRepository).save(any(Comment.class));
+        verify(postRepository).increaseCommentCount(POST_ID);
+    }
+
+    @Test
+    @DisplayName("deleteComment: 본인 + 대댓글 수만큼 댓글 수를 DB에서 직접 내린다")
+    void deleteComment_decreasesCommentCountByCommentAndChildren() {
+        // given
+        Post post = mock(Post.class);
+        when(post.getId()).thenReturn(POST_ID);
+        Comment comment = mock(Comment.class);
+        when(comment.getPost()).thenReturn(post);
+        when(comment.isOwner(memberUuid)).thenReturn(true);
+        when(comment.getChildren()).thenReturn(List.of(mock(Comment.class), mock(Comment.class)));
+        when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(comment));
+
+        // when
+        service.deleteComment(memberUuid, COMMENT_ID);
+
+        // then — 본인 1 + 대댓글 2
+        verify(commentLikeRepository).deleteAllByCommentOrChildren(comment);
+        verify(commentRepository).delete(comment);
+        verify(postRepository).decreaseCommentCount(POST_ID, 3);
     }
 }

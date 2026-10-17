@@ -71,8 +71,8 @@ public class CommentService {
 
         commentRepository.save(comment);
 
-        // 게시글의 댓글 카운트 증가
-        post.increaseCommentCount();
+        // 게시글의 댓글 카운트 증가 (DB에서 직접 +1)
+        postRepository.increaseCommentCount(postId);
 
         return CommentResponse.from(comment, false);
     }
@@ -161,7 +161,7 @@ public class CommentService {
 
         commentLikeRepository.deleteAllByCommentOrChildren(comment);
         commentRepository.delete(comment);
-        post.decreaseCommentCount(deleteCount);
+        postRepository.decreaseCommentCount(post.getId(), deleteCount);
     }
 
     // ───────────────────── 마이페이지 ─────────────────────

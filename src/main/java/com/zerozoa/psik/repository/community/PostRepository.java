@@ -71,4 +71,19 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Post p WHERE p.id = :id")
     Optional<Post> findByIdForUpdate(@Param("id") Long id);
+
+    // 카운터는 엔티티에서 읽고 더하고 쓰지 않고 DB가 직접 계산한다 —
+    // 동시 요청이 와도 값이 유실되지 않고, 다른 컬럼(좋아요 수 등)을 옛날 값으로 덮어쓰지도 않는다
+    @Modifying
+    @Query("UPDATE Post p SET p.viewCount = p.viewCount + 1 WHERE p.id = :id")
+    void increaseViewCount(@Param("id") Long id);
+
+    @Modifying
+    @Query("UPDATE Post p SET p.commentCount = p.commentCount + 1 WHERE p.id = :id")
+    void increaseCommentCount(@Param("id") Long id);
+
+    // 댓글 수는 0 미만으로 내려가지 않도록 보호
+    @Modifying
+    @Query("UPDATE Post p SET p.commentCount = CASE WHEN p.commentCount > :count THEN p.commentCount - :count ELSE 0 END WHERE p.id = :id")
+    void decreaseCommentCount(@Param("id") Long id, @Param("count") int count);
 }
