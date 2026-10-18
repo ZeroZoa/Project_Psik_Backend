@@ -13,7 +13,7 @@ tools: Read, Grep, Glob, Bash
 - [ ] 동시 요청 상황에서 unique 제약 위반을 방어했는가 (`DataIntegrityViolationException` 캐치 패턴 — `MemberProductService.markAsOwned` 참고)
 - [ ] 외부 API(Gemini, GCS) 호출 실패 시, 롤백되지 않는 자원(업로드된 파일 등)이 정리되는가
 - [ ] DTO에 입력값 검증(`@Valid`, `@Size`, `@NotBlank`)이 있는가
-- [ ] 새로 발견한 이슈가 있다면 `CLAUDE.md`의 "알려진 기술 부채"에 추가할 만한 수준인지 판단해서 보고에 포함
+- [ ] 새로 발견한 이슈가 있다면 `docs/architecture.md`의 "알려진 기술 부채"에 추가할 만한 수준인지 판단해서 보고에 포함
 
 ## 진행 방식
 
