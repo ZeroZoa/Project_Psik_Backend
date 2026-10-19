@@ -9,7 +9,6 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     //Member
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "M001", "사용자를 찾을 수 없습니다."),
-    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "M002", "이미 가입된 이메일입니다."),
     NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "M003", "이미 존재하는 닉네임입니다."),
     PROFILE_ALREADY_COMPLETE(HttpStatus.CONFLICT, "M004", "이미 프로필 설정이 완료된 사용자입니다."),
 

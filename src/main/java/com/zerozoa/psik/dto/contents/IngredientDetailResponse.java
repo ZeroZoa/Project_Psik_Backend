@@ -1,7 +1,6 @@
 package com.zerozoa.psik.dto.contents;
 
 import com.zerozoa.psik.domain.contents.Ingredient;
-import com.zerozoa.psik.domain.member.SkinConcern;
 import lombok.Builder;
 
 import java.util.ArrayList;
