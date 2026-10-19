@@ -1,5 +1,6 @@
 {
   "permissions": {
+    "disableBypassPermissionsMode": "disable",
     "allow": [
       "Bash(git status)",
       "Bash(git diff:*)",
@@ -9,12 +10,28 @@
       "Bash(git fetch:*)",
       "Bash(./gradlew compileJava)",
       "Bash(./gradlew build -x test)",
-      "Bash(./gradlew test)"
+      "Bash(./gradlew test)",
+      "Bash(./gradlew test:*)",
+      "Bash(CI=true ./gradlew clean build)",
+      "Bash(gcloud logging read:*)"
+    ],
+    "ask": [
+      "Edit",
+      "Write",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [
-      "Bash(git push --force*)",
-      "Bash(git push -f*)",
-      "Bash(rm -rf*)"
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./uploads/**)",
+      "Read(./db/**)",
+      "Bash(git push:*)",
+      "Bash(rm -rf*)",
+      "Bash(gcloud run deploy:*)",
+      "Bash(gcloud run services update:*)",
+      "Bash(gcloud sql:*)",
+      "Bash(gcloud secrets:*)"
     ]
   },
   "hooks": {
@@ -24,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && ./gradlew compileJava -q"
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && ./gradlew compileJava -q || exit 2"
           }
         ]
       }
