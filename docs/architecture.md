@@ -13,6 +13,7 @@
 - AccessToken: 서버 저장 안 함. OAuth 리다이렉트에 토큰을 싣지 않고, 프론트가 로드 직후 `/api/auth/reissue` 호출해 응답 body로 받음.
 - RefreshToken: DB(`refresh_tokens`) + httpOnly 쿠키 이중 저장. DB 저장 이유: 로그아웃 즉시 무효화, RTR, 탈퇴 시 일괄 삭제. `token` 컬럼 unique 제약은 의도적으로 없음(JWT 충돌 확률 사실상 0, 팀 결정).
 - 타입 구분: `typ` 클레임(ACCESS/REFRESH). `JwtAuthenticationFilter`는 ACCESS만 인증, `AuthService.reissue`는 REFRESH만 수용(Authorization 헤더에 Refresh 넣으면 401).
+- 만료 토큰 정리: `TokenCleanupScheduler`가 매일 03시(UTC, KST 12시) `issuedAt < now − refresh 유효기간`인 행만 삭제. `issuedAt`은 발급·재발급 때마다 갱신된다. 기준을 `now`로 두면 유효한 토큰까지 전부 지워져 매일 전원이 로그아웃된다(2026-10 수정).
 
 ## RAG 파이프라인
 1. 저장 시점: 성분 등록/수정 → `Ingredient.toEmbeddingText()` → Gemini 임베딩 → pgvector 저장. 임베딩 실패해도 예외를 삼켜 롤백 안 함 (`/api/admin/ingredients/embed-all`로 재실행).
