@@ -4,7 +4,6 @@ import com.zerozoa.psik.repository.auth.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,7 +18,7 @@ public class TokenCleanupScheduler {
     @Value("${jwt.refresh-token-expiration-ms}")
     private long refreshTokenExpirationMs;
 
-    @Scheduled(cron = "0 0 3 * * *")  // 매일 03시 (서버 시간대 UTC 기준 → KST 12시)
+    // Cloud Scheduler가 매일 03시(UTC, KST 12시) /internal/jobs/cleanup-tokens로 호출한다 (InternalJobController)
     @Transactional
     public void cleanupExpiredTokens() {
         try {

@@ -58,11 +58,12 @@ jobs:
             --max-instances=3 \
             --memory=1Gi \
             --cpu=1 \
-            --timeout=60 \
+            --timeout=120 \
+            --cpu-throttling \
             --concurrency=80 \
             --service-account=${{ steps.project.outputs.number }}-compute@developer.gserviceaccount.com \
             --add-cloudsql-instances=${{ env.PROJECT_ID }}:${{ env.REGION }}:psik-db \
-            --set-env-vars="SPRING_PROFILES_ACTIVE=prod" \
+            --set-env-vars="SPRING_PROFILES_ACTIVE=prod,GCP_OIDC_AUDIENCE=https://psik-backend-wg4kkexeyq-du.a.run.app,GCP_OIDC_SERVICE_ACCOUNT=pubsub-push@gen-lang-client-0880530479.iam.gserviceaccount.com" \
             --set-secrets="\
           DB_URL=DB_URL:latest,\
           DB_USERNAME=DB_USERNAME:latest,\

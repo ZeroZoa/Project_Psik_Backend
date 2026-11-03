@@ -5,7 +5,6 @@ import com.zerozoa.psik.domain.diary.SkinAnalysis;
 import com.zerozoa.psik.repository.diary.SkinAnalysisRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -18,6 +17,7 @@ import java.util.List;
  * 사용자가 재업로드도 못 하는 상태(ANALYSIS_ALREADY_EXISTS)가 되므로 주기적으로 정리한다.
  *
  * 기준 시간은 워커의 처리 제한(60초)과 기한 체크(5분)보다 충분히 길게 잡아 정상 처리 중인 건을 건드리지 않는다.
+ * Cloud Scheduler가 /internal/jobs/sweep-pending으로 주기 호출한다 (InternalJobController).
  * 인스턴스가 여러 개여도 markFailed가 PENDING일 때만 상태를 바꾸므로 중복 실행은 안전하다.
  */
 @Slf4j
@@ -30,7 +30,6 @@ public class SkinAnalysisSweeper {
     private final SkinAnalysisRepository skinAnalysisRepository;
     private final SkinAnalysisFailureHandler failureHandler;
 
-    @Scheduled(fixedDelay = 60_000)   // 1분마다
     public void sweepStalePending() {
         try {
             Instant threshold = Instant.now().minus(STALE_AFTER);

@@ -13,7 +13,7 @@
 - AccessToken: 서버 저장 안 함. OAuth 리다이렉트에 토큰을 싣지 않고, 프론트가 로드 직후 `/api/auth/reissue` 호출해 응답 body로 받음.
 - RefreshToken: DB(`refresh_tokens`) + httpOnly 쿠키 이중 저장. DB 저장 이유: 로그아웃 즉시 무효화, RTR, 탈퇴 시 일괄 삭제. `token` 컬럼 unique 제약은 의도적으로 없음(JWT 충돌 확률 사실상 0, 팀 결정).
 - 타입 구분: `typ` 클레임(ACCESS/REFRESH). `JwtAuthenticationFilter`는 ACCESS만 인증, `AuthService.reissue`는 REFRESH만 수용(Authorization 헤더에 Refresh 넣으면 401).
-- 만료 토큰 정리: `TokenCleanupScheduler`가 매일 03시(UTC, KST 12시) `issuedAt < now − refresh 유효기간`인 행만 삭제. `issuedAt`은 발급·재발급 때마다 갱신된다. 기준을 `now`로 두면 유효한 토큰까지 전부 지워져 매일 전원이 로그아웃된다(2026-10 수정).
+- 만료 토큰 정리: Cloud Scheduler가 매일 03시(UTC, KST 12시) `/internal/jobs/cleanup-tokens`를 호출하면 `TokenCleanupScheduler`가 `issuedAt < now − refresh 유효기간`인 행만 삭제. `issuedAt`은 발급·재발급 때마다 갱신된다. 기준을 `now`로 두면 유효한 토큰까지 전부 지워져 매일 전원이 로그아웃된다(2026-10 수정).
 
 ## RAG 파이프라인
 1. 저장 시점: 성분 등록/수정 → `Ingredient.toEmbeddingText()` → Gemini 임베딩 → pgvector 저장. 임베딩 실패해도 예외를 삼켜 롤백 안 함 (`/api/admin/ingredients/embed-all`로 재실행).
@@ -22,12 +22,13 @@
 
 ## 피부 이미지 분석 (Pub/Sub 비동기)
 1. 접수(동기): `SkinAnalysisService.analyze()` — 소유자/재분석/하루 3회(KST) 검증 → GCS 저장 → `SkinAnalysis` PENDING 저장 → 커밋 후(`AfterCommit.run`) `SkinAnalysisEventPublisher`가 `skin-analysis-requests` 발행. 커밋 전 발행 시 워커가 행을 못 찾아 메시지 소실. 발행 실패 시 `SkinAnalysisFailureHandler`가 FAILED 전환 + 사진 삭제.
-2. 처리(비동기): `SkinAnalysisWorker`가 `@PostConstruct`에서 `skin-analysis-requests-sub` 구독. Gemini Vision `responseSchema` structured output(`faceDetected` + 점수 4종 + `summary`), 호출 전 Scrimage 512x512 JPEG 압축. 전용 스레드풀(4 + 대기열 4), 시도당 60초 제한.
-   - `parallel-pull-count: 8` 필수: 작으면 스트림 1개라 연속 요청 시 두 번째가 PENDING 고착(과거 무한 로딩 장애 원인).
+2. 처리(비동기, push): `skin-analysis-requests-sub`는 push 구독. Pub/Sub가 `POST /internal/pubsub/skin-analysis`(`SkinAnalysisPushController`)로 보내고, `GcpOidcVerifier`가 Google OIDC 토큰(audience=서비스 URL, 서비스 계정 `pubsub-push@`)을 검증한 뒤 `SkinAnalysisWorker.handle()`이 처리. Gemini Vision `responseSchema` structured output(`faceDetected` + 점수 4종 + `summary`), 호출 전 Scrimage 512x512 JPEG 압축. 전용 스레드풀(4 + 대기열 4), 시도당 60초 제한.
+   - 왜 push인가(2026-11 전환): 예전 pull 구독(`@PostConstruct` 스트리밍)은 요청 밖에서 CPU가 필요해 Cloud Run을 "CPU 항상 할당"으로 돌려야 했고, min-instances=1이 24시간 정가 과금돼 비용이 약 3배가 됐다. push는 메시지가 일반 HTTP 요청이라 요청 기반 과금(`--cpu-throttling`)으로 동작한다.
+   - Cloud Run `--timeout`·ack deadline 120초 > 시도 제한 60초.
 3. 멱등성: at-least-once라 `SkinAnalysisTxOps.check()`로 `ALREADY_DONE` 스킵, 5분 지난 건 `EXPIRED` → FAILED. `markCompleted`/`markFailed`는 PENDING일 때만 변경(늦게 온 결과 덮어쓰기 방지). ⚠️ 체크와 변경이 한 트랜잭션이 아니라 동시 배달은 못 막음(기술 부채 1).
-4. ack/nack: 성공 → `markCompleted()`. 얼굴 미검출/기타 예외 → `markFailed()` + GCS 삭제 후 ack. 깨진 JSON → ack 폐기. 풀 포화·DB 장애 등 일시 실패만 nack. 각 메서드 독립 트랜잭션.
+4. 응답 코드: 2xx = ack, 5xx = Pub/Sub가 백오프 후 재전달. 성공 → `markCompleted()`. 얼굴 미검출/기타 예외 → `markFailed()` + GCS 삭제 후 204. 깨진 JSON → 204로 폐기. 풀 포화·DB 장애 등 일시 실패만 503. 각 메서드 독립 트랜잭션.
 5. 프론트 `SkinAnalysisProvider`가 5초 간격 최대 20회(100초) 폴링.
-6. 안전망: `SkinAnalysisSweeper`가 1분마다 10분 넘은 PENDING을 FAILED로 정리. `markFailed`는 afterCommit에서도 호출되므로 `REQUIRES_NEW` (REQUIRED면 끝난 트랜잭션에 참여해 저장 안 됨).
+6. 안전망: Cloud Scheduler가 5분마다 `POST /internal/jobs/sweep-pending`(`InternalJobController`, OIDC 검증)을 호출해 `SkinAnalysisSweeper`가 10분 넘은 PENDING을 FAILED로 정리. 토큰 정리도 같은 방식(`/internal/jobs/cleanup-tokens`, 매일 03시 UTC). `@Scheduled`는 쓰지 않는다(요청 밖에선 CPU가 없음). `markFailed`는 afterCommit에서도 호출되므로 `REQUIRES_NEW` (REQUIRED면 끝난 트랜잭션에 참여해 저장 안 됨).
 
 ## 동시성 (좋아요 · 카운터 · 커밋 후 작업)
 - 좋아요 토글: `PostRepository`/`CommentRepository.findByIdForUpdate`(`@Lock(PESSIMISTIC_WRITE)`, SELECT ... FOR UPDATE)로 행을 잠가 같은 글/댓글의 요청을 순서대로 처리. 락은 트랜잭션 종료(커밋/롤백) 때 풀린다. 낙관적 락(`@Version`)은 충돌이 드문 경우용이라 좋아요에 맞지 않아 `RefreshToken`에만 사용. 락이 실제로 걸리는지는 단위 테스트로 검증 불가(락 조회 메서드 사용 여부까지만 테스트).
@@ -49,7 +50,7 @@ Ghost User(UUID `00000000-0000-0000-0000-000000000000`). 순서: 좋아요 삭�
 - prod 재현은 GCS/Secret Manager 의존이라 어려움 → `gcloud logging read` 또는 Cloud Run 콘솔 로그.
 - 응답 body `code` → `global/exception/ErrorCode` 매핑.
 - `GEMINI_RATE_LIMIT_EXCEEDED`: 쿼터 초과, 재시도. `INVALID_TOKEN`: `JwtAuthenticationFilter` 로그. `NonUniqueResultException`: refresh token unique 제약 없음 결정 참고.
-- 로컬 실행 주의: local 프로필로 켜도 gcloud 인증(ADC)으로 운영 GCP에 붙어 `SkinAnalysisWorker`가 운영 구독을 같이 구독한다. 로컬 DB에는 그 행이 없어 운영 사용자의 분석이 PENDING에 걸릴 수 있다(스위퍼가 10분 뒤 FAILED로 복구). 짧게 켜고 끌 것. 8080 포트는 다른 프로젝트 Docker 컨테이너(`crewer_app`)와 충돌할 수 있다.
+- 로컬 실행: push 전환(2026-11) 후로는 로컬이 운영 구독을 가져가지 않는다. 대신 로컬에서는 분석 요청이 운영 토픽으로 발행만 되고 처리되지 않는다(운영 서버가 로컬 DB에 없는 id를 받아 스킵). 8080 포트는 다른 프로젝트 Docker 컨테이너(`crewer_app`)와 충돌할 수 있다.
 
 ## 알려진 기술 부채 (취업시즌 이후)
 1. SkinAnalysisWorker 멱등성 체크가 상태 변경과 별도 트랜잭션 → CAS(`UPDATE ... WHERE status='PENDING'`) 필요

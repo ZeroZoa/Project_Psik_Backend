@@ -3,19 +3,15 @@ package com.zerozoa.psik.service.diary;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.cloud.spring.pubsub.core.PubSubTemplate;
-import com.google.cloud.spring.pubsub.support.BasicAcknowledgeablePubsubMessage;
 import com.sksamuel.scrimage.ImmutableImage;
 import com.sksamuel.scrimage.nio.JpegWriter;
 import com.zerozoa.psik.dto.diary.SkinAnalysisRequestedEvent;
 import com.zerozoa.psik.service.ai.GeminiService;
 import com.zerozoa.psik.service.diary.SkinAnalysisTxOps.Checkpoint;
 import com.zerozoa.psik.service.storage.FileStorageService;
-import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -34,18 +30,14 @@ public class SkinAnalysisWorker {
     private static final long PROCESS_TIMEOUT_SECONDS = 60;                  // 한 번의 처리 시도 상한
     private static final Duration PROCESS_DEADLINE = Duration.ofMinutes(5);  // 접수 후 이 시간이 지나면 재시도 없이 실패
 
-    private final PubSubTemplate pubSubTemplate;
     private final ObjectMapper objectMapper;
     private final SkinAnalysisTxOps txOps;
     private final GeminiService geminiService;
     private final FileStorageService fileStorageService;
     private final SkinAnalysisFailureHandler failureHandler;
 
-    @Value("${gcp.pubsub.skin-analysis-subscription}")
-    private String subscriptionName;
-
     // 블로킹 I/O(GCS, Gemini) 전용 풀. 대기열을 제한해 대기 시간이 타임아웃에 섞이지 않게 하고,
-    // 가득 차면 RejectedExecutionException → nack으로 재전달한다.
+    // 가득 차면 RejectedExecutionException → 5xx 응답으로 재전달한다.
     private final ExecutorService analysisExecutor = new ThreadPoolExecutor(
             4, 4, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(4),
             r -> {
@@ -54,36 +46,28 @@ public class SkinAnalysisWorker {
                 return t;
             });
 
-    @PostConstruct
-    public void subscribe() {
-        pubSubTemplate.subscribe(subscriptionName, this::onMessage);
-    }
-
     @PreDestroy
     public void shutdown() {
         analysisExecutor.shutdownNow();
     }
 
-    void onMessage(BasicAcknowledgeablePubsubMessage message) {
-        String payload = message.getPubsubMessage().getData().toStringUtf8();
-
+    /** Pub/Sub push로 받은 메시지 처리. true = 처리 완료(2xx 응답 → ack), false = 재전달 요청(5xx 응답) */
+    public boolean handle(String payload) {
         SkinAnalysisRequestedEvent event;
         try {
             event = objectMapper.readValue(payload, SkinAnalysisRequestedEvent.class);
         } catch (JsonProcessingException e) {
             log.error("[SkinAnalysisWorker] 복구 불가능한 메시지, 폐기 - payload={}", payload, e);
-            message.ack();      // 다시 받아도 못 읽는 메시지
-            return;
+            return true;        // 다시 받아도 못 읽는 메시지
         }
 
         try {
             process(event);
         } catch (Exception e) {
             log.warn("[SkinAnalysisWorker] 일시적 처리 실패, 재전달 요청 - skinAnalysisId={}", event.skinAnalysisId(), e);
-            message.nack();     // 풀 포화, DB 일시 장애 등
-            return;
+            return false;       // 풀 포화, DB 일시 장애 등
         }
-        message.ack();
+        return true;
     }
 
     private void process(SkinAnalysisRequestedEvent event) {

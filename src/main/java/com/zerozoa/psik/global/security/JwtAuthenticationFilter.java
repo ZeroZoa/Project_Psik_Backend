@@ -30,6 +30,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        // Pub/Sub push·Cloud Scheduler는 Google OIDC 토큰을 보낸다 — 우리 JWT가 아니므로 검증은 GcpOidcVerifier가 한다
+        return request.getRequestURI().startsWith("/internal/");
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
         String token = resolveToken(request);
