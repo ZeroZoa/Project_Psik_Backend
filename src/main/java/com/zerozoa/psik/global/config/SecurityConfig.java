@@ -74,6 +74,8 @@ public class SecurityConfig {
                         .requestMatchers("/", "/css/**", "/images/**", "/js/**", "/favicon.ico").permitAll()
                         .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**").permitAll()
                         .requestMatchers("/api/members/check-nickname").permitAll()
+                        // Pub/Sub push·Cloud Scheduler 전용 — 인증은 GcpOidcVerifier가 컨트롤러에서 직접 한다
+                        .requestMatchers("/internal/**").permitAll()
 
                         // 관리자 전용 — ADMIN 권한 필요
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

@@ -41,7 +41,9 @@ admin, auth, chat, community, contents, diary, inquiry, member.
 - 로깅: `@Slf4j`, `log.info("[Domain] 액션 - key={}", value)`.
 
 ## 절대 바꾸지 말 것
-- Pub/Sub 구독 `parallel-pull-count: 8` (줄이면 PENDING 고착 장애 재발)
+- `/internal/**`(Pub/Sub push·Cloud Scheduler)은 반드시 `GcpOidcVerifier.verify()`를 거친다. SecurityConfig에서 permitAll이라 빠뜨리면 누구나 호출 가능
+- 백그라운드 스레드·`@Scheduled`·pull 구독을 다시 넣지 말 것. Cloud Run이 요청 중에만 CPU를 할당(`--cpu-throttling`)하므로 동작하지 않고, 되돌리려고 CPU 항상 할당을 켜면 비용이 약 3배가 된다(2026-09-27~11-03 실제 발생)
+- Cloud Run `--timeout`과 push 구독 ack deadline은 분석 한도(60초)보다 길게 유지(현재 120초)
 - `SkinAnalysisTxOps.markFailed`의 `REQUIRES_NEW` (afterCommit에서 호출됨)
 - 임베딩 실패 시 예외를 삼키는 동작 (의도된 설계, embed-all로 재실행)
 - 좋아요 토글은 `findByIdForUpdate`(비관적 락)로 조회한다. 락 없는 `findById`로 되돌리지 말 것
