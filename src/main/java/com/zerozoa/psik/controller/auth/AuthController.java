@@ -18,6 +18,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
+
 @Slf4j
 @Tag(name = "Auth API", description = "인증/토큰 관련 API")
 @RestController
@@ -29,6 +31,10 @@ public class AuthController {
 
     @Value("${app.cookie.secure:false}")
     private boolean cookieSecure;
+
+    // 재발급 쿠키 수명 = Refresh Token 유효기간 (로그인 쿠키와 같은 설정값)
+    @Value("${jwt.refresh-token-expiration-ms}")
+    private long refreshTokenExpirationMs;
 
     /**
      * 토큰 재발급 (Reissue)
@@ -85,7 +91,7 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .path("/")
-                .maxAge(7 * 24 * 60 * 60)
+                .maxAge(Duration.ofMillis(refreshTokenExpirationMs))
                 .sameSite(cookieSecure ? "None" : "Lax")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
