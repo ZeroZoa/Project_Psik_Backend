@@ -7,7 +7,8 @@
 클래스 레벨 `@Transactional(readOnly=true)` 기본, 쓰기만 메서드 레벨 `@Transactional`. 읽기 전용은 Hibernate dirty checking 오버헤드 감소.
 
 ## OAuth2 + STATELESS
-`SessionCreationPolicy.STATELESS`라 세션 기반 `HttpSessionOAuth2AuthorizationRequestRepository` 사용 불가. `HttpCookieOAuth2AuthorizationRequestRepository`를 직접 구현해 `OAuth2AuthorizationRequest`를 Base64 직렬화 후 httpOnly + Secure(항상 true) + SameSite=Lax 쿠키(3분 TTL)에 저장. (역)직렬화는 Spring Security 공식 `SecurityJackson2Modules` 사용.
+`SessionCreationPolicy.STATELESS`라 세션 기반 `HttpSessionOAuth2AuthorizationRequestRepository` 사용 불가. `HttpCookieOAuth2AuthorizationRequestRepository`를 직접 구현해 `OAuth2AuthorizationRequest`를 Base64 직렬화 후 httpOnly + SameSite=Lax 쿠키(3분 TTL)에 저장. Secure는 `app.cookie.secure`(운영 true, 로컬 false). (역)직렬화는 Spring Security 공식 `SecurityJackson2Modules` 사용.
+- 쿠키(OAuth 요청, refreshToken) SameSite는 모두 Lax: psik.kr ↔ api.psik.kr은 같은 사이트라 None이 필요 없고, OAuth 콜백은 GET 이동이라 Lax 쿠키가 전송된다. None은 다른 사이트에서 보낸 POST(로그아웃 등)에도 쿠키가 붙어 CSRF 보호만 약해진다(2026-11 변경).
 
 ## 토큰 저장 전략 (2026-09-12 개선)
 - AccessToken: 서버 저장 안 함. OAuth 리다이렉트에 토큰을 싣지 않고, 프론트가 로드 직후 `/api/auth/reissue` 호출해 응답 body로 받음.
