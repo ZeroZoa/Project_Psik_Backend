@@ -24,7 +24,7 @@ public class CookieUtils {
         cookie.setHttpOnly(true);
         cookie.setMaxAge(maxAge);
         cookie.setSecure(secure);        // 로컬(app.cookie.secure=false)에서는 HTTP로도 저장되도록
-        cookie.setAttribute("SameSite", secure ? "None" : "Lax");
+        cookie.setAttribute("SameSite", "Lax");   // 구글/카카오 콜백은 GET 이동이라 Lax 쿠키도 전송됨
         response.addCookie(cookie);
     }
 

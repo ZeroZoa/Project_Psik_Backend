@@ -92,7 +92,7 @@ public class AuthController {
                 .secure(cookieSecure)
                 .path("/")
                 .maxAge(Duration.ofMillis(refreshTokenExpirationMs))
-                .sameSite(cookieSecure ? "None" : "Lax")
+                .sameSite("Lax")   // psik.kr ↔ api.psik.kr은 같은 사이트라 None 불필요 (None은 CSRF 보호만 약해짐)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
@@ -123,7 +123,7 @@ public class AuthController {
                 .secure(cookieSecure)
                 .path("/")
                 .maxAge(0)
-                .sameSite(cookieSecure ? "None" : "Lax")
+                .sameSite("Lax")   // psik.kr ↔ api.psik.kr은 같은 사이트라 None 불필요 (None은 CSRF 보호만 약해짐)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 

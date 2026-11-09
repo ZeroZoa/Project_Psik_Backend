@@ -52,6 +52,7 @@ class AuthControllerTest {
         String setCookie = response.getHeader(HttpHeaders.SET_COOKIE);
         assertThat(setCookie)
                 .contains("refreshToken=new-refresh")
-                .contains("Max-Age=" + Duration.ofDays(14).toSeconds());
+                .contains("Max-Age=" + Duration.ofDays(14).toSeconds())
+                .contains("SameSite=Lax");
     }
 }

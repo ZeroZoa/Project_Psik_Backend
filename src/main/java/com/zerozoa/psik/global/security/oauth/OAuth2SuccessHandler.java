@@ -79,7 +79,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 .maxAge(maxAge)
                 .httpOnly(true)
                 .secure(cookieSecure)
-                .sameSite(cookieSecure ? "None" : "Lax")
+                .sameSite("Lax")   // psik.kr ↔ api.psik.kr은 같은 사이트라 None 불필요 (None은 CSRF 보호만 약해짐)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
