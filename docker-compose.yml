@@ -8,7 +8,8 @@ services:
     environment:
       POSTGRES_DB: psik_postgres_db
       POSTGRES_USER: psik
-      POSTGRES_PASSWORD: psikskinner0620
+      # 비밀번호는 같은 폴더 .env의 DB_PASSWORD에서 읽는다 (.env는 git 제외)
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?.env에 DB_PASSWORD가 없습니다}
     ports:
       - "5432:5432"
     volumes:
